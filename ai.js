@@ -50,8 +50,9 @@ function createAI({ apiKey = process.env.OPENAI_API_KEY || '', model = process.e
           signal: AbortSignal.any([AbortSignal.timeout(90000), ...(signal ? [signal] : [])])
         });
         if (!response.ok) {
-          await response.body?.cancel();
-          const message = response.status === 429 ? 'AI 服务额度不足或繁忙，请稍后再试。' : [401, 403].includes(response.status) ? 'AI 服务认证失败，请联系管理员检查密钥。' : response.status === 400 ? 'AI 无法处理此请求，请检查图片或联系管理员。' : 'AI 服务暂时不可用，请稍后重试。';
+          const detail = await response.json().catch(() => ({}));
+          const quota = detail.error?.type === 'insufficient_quota' || ['insufficient_quota', 'credit_balance_exhausted'].includes(detail.error?.code);
+          const message = quota ? 'OpenAI API 余额或额度不足，请管理员充值或检查额度后重试。' : response.status === 429 ? 'AI 服务请求过于频繁，请稍后再试。' : [401, 403].includes(response.status) ? 'AI 服务认证失败，请联系管理员检查密钥。' : response.status === 400 ? 'AI 无法处理此请求，请检查图片或联系管理员。' : 'AI 服务暂时不可用，请稍后重试。';
           throw new ChatError(502, message);
         }
         const data = await response.json();

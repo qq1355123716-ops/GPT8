@@ -65,6 +65,8 @@ test('upstream errors never expose provider response or API secrets', async () =
   await assert.rejects(ai.reply('session', { text: '你好', images: [] }), error => error.status === 502 && !error.message.includes('test-only-secret'));
   const incomplete = createAI({ apiKey: 'test-only-secret', fetchImpl: async () => new Response(JSON.stringify({ status: 'incomplete', output: [] })) });
   await assert.rejects(incomplete.reply('session', { text: '你好', images: [] }), error => error.status === 502);
+  const quota = createAI({ apiKey: 'test-only-secret', fetchImpl: async () => new Response(JSON.stringify({ error: { type: 'insufficient_quota', code: 'credit_balance_exhausted' } }), { status: 429 }) });
+  await assert.rejects(quota.reply('session', { text: '你好', images: [] }), error => error.status === 502 && error.message.includes('余额或额度不足'));
 });
 test('concurrent requests are blocked; logout removes context; requests are limited', async () => {
   let release;
