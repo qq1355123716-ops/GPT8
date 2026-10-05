@@ -10,16 +10,41 @@ const chatHistory = document.getElementById('chat-history');
 let baseGameId = new URLSearchParams(window.location.search).get('remix') || undefined;
 let baseLoading = Boolean(baseGameId);
 let baseInvalid = false;
-const remixBanner = document.createElement('p');
-remixBanner.className = 'composer-status';
+const defaultPromptPlaceholder = promptInput.placeholder;
+const remixBanner = document.createElement('div');
+remixBanner.className = 'remix-banner';
 remixBanner.hidden = !baseGameId;
-remixBanner.textContent = '正在载入原作品…';
-promptInput.before(remixBanner);
+const remixText = document.createElement('p');
+remixText.textContent = '正在载入原作品…';
+const closeRemix = document.createElement('button');
+closeRemix.type = 'button';
+closeRemix.className = 'remix-close';
+closeRemix.textContent = '×';
+closeRemix.setAttribute('aria-label', '关闭当前作品修改');
+closeRemix.title = '关闭当前作品修改';
+remixBanner.append(remixText, closeRemix);
+promptInput.closest('.composer').prepend(remixBanner);
+const remixRequest = new AbortController();
+closeRemix.addEventListener('click', () => {
+  remixRequest.abort();
+  baseGameId = undefined;
+  baseLoading = baseInvalid = false;
+  accountVersion++;
+  activeRequest?.abort();
+  if (gameWindow && !gameWindow.closed) gameWindow.close();
+  gameWindow = undefined;
+  remixBanner.hidden = true;
+  promptInput.placeholder = defaultPromptPlaceholder;
+  composerStatus.hidden = true;
+  window.history.replaceState(null, '', '/#home');
+  refreshComposer();
+  promptInput.focus();
+});
 if (baseGameId) {
-  fetch('/api/works/' + encodeURIComponent(baseGameId), { signal: AbortSignal.timeout(15000) })
+  fetch('/api/works/' + encodeURIComponent(baseGameId), { signal: AbortSignal.any([remixRequest.signal, AbortSignal.timeout(15000)]) })
     .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.message); return data.game; })
-    .then(game => { remixBanner.textContent = `基于「${game.title}」继续修改 · 原作者：${game.author}。新版本保存到你的账号。`; promptInput.placeholder = '输入你想修改的内容，例如：增加关卡、改变玩法或画面…'; })
-    .catch(() => { baseInvalid = true; remixBanner.textContent = '原作品无法读取，请从作品页面重新选择。'; })
+    .then(game => { if (remixRequest.signal.aborted) return; remixText.textContent = `基于「${game.title}」继续修改 · 原作者：${game.author}。新版本保存到你的账号。`; promptInput.placeholder = '输入你想修改的内容，例如：增加关卡、改变玩法或画面…'; })
+    .catch(() => { if (remixRequest.signal.aborted) return; baseInvalid = true; remixText.textContent = '原作品无法读取，请从作品页面重新选择。'; })
     .finally(() => { baseLoading = false; refreshComposer(); });
 }
 let configured = false;
