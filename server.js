@@ -40,7 +40,7 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
     res.setHeader('Referrer-Policy', 'same-origin');
     try {
       const route = new URL(req.url, origin).pathname;
-      const gameRoute = route.match(/^\/(play|games)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\.html)?$/);
+      const gameRoute = route.match(/^\/(play|games|source)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\.html)?$/);
       if (req.method === 'GET' && gameRoute) {
         const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
         if (!session) return send(res, 401, { message: '请登录后打开游戏。' });
@@ -48,6 +48,10 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         if (!game) return send(res, 404, { message: '游戏不存在或无权访问。' });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store');
+        if (gameRoute[1] === 'source') {
+          res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+          return res.end(games.source(game));
+        }
         if (gameRoute[1] === 'play') {
           res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
           return res.end(games.preview(game));

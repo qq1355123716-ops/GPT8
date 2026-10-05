@@ -58,6 +58,7 @@
     .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 20px; padding-top: 26px; }
     .library-card { padding: 22px; background: var(--panel); border: 1px solid #a8b6f029; border-radius: 16px; min-width: 0; }
     .library-card-icon { display: grid; place-items: center; width: 48px; height: 48px; background: #9a8cf01a; border: 1px solid #b4a8f22a; border-radius: 14px; color: #c8bcff; font-size: 24px; margin-bottom: 22px; }
+    .source-filename { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
     .library-card h3 { font-size: 17px; margin: 0 0 10px; overflow-wrap: anywhere; }
     .library-card time { display: block; color: var(--muted); font-size: 11px; }
     .library-empty { text-align: center; padding: 100px 12px; color: var(--muted); font-size: 14px; line-height: 1.9; }
@@ -147,7 +148,7 @@
       <nav class="header-nav" aria-label="主导航">
         <a class="nav-item" id="nav-home" href="#home" aria-current="page">首页</a>
         <div class="nav-group"><a class="nav-item" id="nav-activity" href="#activity">动态</a><button class="publish-activity" id="publish-activity" type="button" aria-label="发布动态，暂未开放" title="发布动态，暂未开放" disabled hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
-        <button class="nav-item" type="button" disabled>作品</button>
+        <a class="nav-item" id="nav-works" href="#works">作品</a>
       </nav>
       <div class="account">
         <div class="account-dropdown" id="account-dropdown" hidden>
@@ -199,10 +200,16 @@
     <div class="activity-empty"><div class="activity-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-5 3V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h6"/></svg></div><p>暂无动态</p></div>
   </main>
   <main class="library-page" id="library-page" aria-labelledby="library-title" tabindex="-1" hidden>
-    <div class="library-heading"><div><h2 id="library-title">我的游戏库</h2><p id="library-count">你创造的每一个游戏，都在这里。</p></div><button class="auth-button" id="library-refresh" type="button">刷新</button></div>
+    <div class="library-heading"><div><h2 id="library-title">我的游戏库</h2><p id="library-count">保存当前账号生成的 HTML 源文件。</p></div><button class="auth-button" id="library-refresh" type="button">刷新</button></div>
     <div class="library-empty" id="library-empty" role="status"><p id="library-message">正在读取游戏库…</p><a id="library-create" href="#home" hidden>去首页创造游戏 ↗</a><button class="auth-button" id="library-login" type="button" hidden>登录 / 注册</button></div>
-    <div class="library-grid" id="library-grid" aria-label="我的游戏列表" hidden></div>
+    <div class="library-grid" id="library-grid" aria-label="我的源文件列表" hidden></div>
     <div class="library-pagination" id="library-pagination" hidden><button class="auth-button" id="library-prev" type="button">上一页</button><span id="library-page-number"></span><button class="auth-button" id="library-next" type="button">下一页</button></div>
+  </main>
+  <main class="library-page" id="works-page" aria-labelledby="works-title" tabindex="-1" hidden>
+    <div class="library-heading"><div><h2 id="works-title">我的作品</h2><p id="works-count">当前账号创造的游戏成品，点开即可游玩。</p></div><button class="auth-button" id="works-refresh" type="button">刷新</button></div>
+    <div class="library-empty" id="works-empty" role="status"><p id="works-message">正在读取作品…</p><a id="works-create" href="#home" hidden>去首页创造游戏 ↗</a><button class="auth-button" id="works-login" type="button" hidden>登录 / 注册</button></div>
+    <div class="library-grid" id="works-grid" aria-label="我的作品列表" hidden></div>
+    <div class="library-pagination" id="works-pagination" hidden><button class="auth-button" id="works-prev" type="button">上一页</button><span id="works-page-number"></span><button class="auth-button" id="works-next" type="button">下一页</button></div>
   </main>
   <dialog id="auth-dialog" aria-labelledby="auth-title">
     <div class="dialog-top"><h2 id="auth-title">欢迎来到一句一游戏</h2><button class="close" id="close-auth" type="button" aria-label="关闭">×</button></div>

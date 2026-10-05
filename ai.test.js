@@ -106,6 +106,13 @@ test('generated HTML is saved as a new file, isolated in preview, downloadable a
     assert.equal(readFileSync(path.join(directory, result.data.game.filename), 'utf8'), html);
     assert.equal((await api(result.data.game.url)).status, 401);
     assert.equal((await api(result.data.game.url, undefined, other.cookie)).status, 404);
+    assert.equal((await api(result.data.game.sourceUrl)).status, 401);
+    assert.equal((await api(result.data.game.sourceUrl, undefined, other.cookie)).status, 404);
+    const source = await api(result.data.game.sourceUrl, undefined, owner.cookie);
+    assert.equal(source.status, 200);
+    assert.match(source.data, /&lt;script&gt;/);
+    assert.doesNotMatch(source.data, /<script>/);
+    assert.match(source.headers.get('content-security-policy'), /default-src 'none'/);
     const preview = await api(result.data.game.url, undefined, owner.cookie);
     assert.match(preview.data, /sandbox="allow-scripts"/);
     assert.match(preview.data, /&lt;测试游戏&gt;/);
@@ -127,6 +134,12 @@ test('generated HTML is saved as a new file, isolated in preview, downloadable a
     assert.equal((await api('/api/games', undefined, other.cookie)).data.total, 0);
     assert.equal((await api('/api/games?page=0', undefined, owner.cookie)).status, 400);
     assert.equal((await api('/api/games?page=2', undefined, owner.cookie)).data.games.length, 0);
+    await api('/api/logout', {}, owner.cookie);
+    assert.equal((await api(result.data.game.sourceUrl, undefined, owner.cookie)).status, 401);
+    const relogin = await api('/api/login', { username: 'owner', password: 'password123' });
+    assert.equal((await api('/api/games', undefined, relogin.cookie)).data.total, 2);
+    assert.equal((await api(result.data.game.url, undefined, relogin.cookie)).status, 200);
+    assert.equal((await api(result.data.game.sourceUrl, undefined, relogin.cookie)).status, 200);
   });
 });
 

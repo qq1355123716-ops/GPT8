@@ -47,3 +47,5 @@ API：`POST /api/register`、`POST /api/login` 接收 JSON `{ "username": "用�
 AI API：`GET /api/ai/status` 返回是否配置服务；`POST /api/chat` 接收 `{ "text": "内容", "images": ["data:image/png;base64,..."] }`，需要登录，返回 `{ "reply": "AI 回复", "game": { "id": "唯一ID", "title": "标题", "filename": "文件名", "url": "预览地址", "downloadUrl": "下载地址" } }`；纯聊天时 game 为 null。图片通过服务端转发，不接受任意远程图片网址。
 
 实现使用 Node.js 内置 [SQLite](https://nodejs.org/api/sqlite.html) 和 [crypto](https://nodejs.org/api/crypto.html)，无需安装第三方运行依赖。
+
+生成的游戏按账号永久保存。账户菜单的「库」（#library）只展示 HTML 源文件，支持安全查看与下载；标题栏「作品」（#works）展示可游玩的成品。两者使用同一份文件，登录其他账号不能访问，重新登录原账号可恢复列表。
