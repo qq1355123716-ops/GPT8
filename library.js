@@ -27,10 +27,10 @@ async function loadLibrary(page = 1) {
   libraryEmpty.hidden = false;
   libraryCreate.hidden = libraryLogin.hidden = true;
   libraryMessage.textContent = `正在读取${label}…`;
-  libraryCount.textContent = isSource ? '保存当前账号生成的 HTML 源文件。' : '当前账号创造的游戏成品，点开即可游玩。';
+  libraryCount.textContent = isSource ? '保存当前账号生成的 HTML 源文件。' : '探索大家的游戏成品，也可以继续修改创作。';
   libraryRefresh.disabled = true;
   try {
-    const response = await fetch(`/api/games?page=${page}`, { credentials: 'same-origin', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+    const response = await fetch(`/api/${isSource ? 'games' : 'works'}?page=${page}`, { credentials: 'same-origin', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
     const data = await response.json();
     if (version !== libraryVersion) return;
     if (!response.ok) {
@@ -67,12 +67,23 @@ async function loadLibrary(page = 1) {
       download.textContent = '下载源文件';
       actions.append(play);
       if (isSource) actions.append(download);
+      else {
+        const remix = document.createElement('a');
+        remix.href = game.remixUrl;
+        remix.textContent = '继续修改';
+        actions.append(remix);
+      }
       if (isSource) {
         const filename = document.createElement('p');
         filename.className = 'source-filename';
         filename.textContent = game.filename;
         card.append(icon, title, filename, date, actions);
-      } else card.append(icon, title, date, actions);
+      } else {
+        const author = document.createElement('p');
+        author.className = 'source-filename';
+        author.textContent = `作者：${game.author}`;
+        card.append(icon, title, author, date, actions);
+      }
       libraryGrid.append(card);
     }
     libraryGrid.hidden = false;

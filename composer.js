@@ -7,6 +7,21 @@ const promptInput = document.getElementById('game-prompt');
 const sendMessage = document.getElementById('send-message');
 const composerHint = document.getElementById('composer-hint');
 const chatHistory = document.getElementById('chat-history');
+let baseGameId = new URLSearchParams(window.location.search).get('remix') || undefined;
+let baseLoading = Boolean(baseGameId);
+let baseInvalid = false;
+const remixBanner = document.createElement('p');
+remixBanner.className = 'composer-status';
+remixBanner.hidden = !baseGameId;
+remixBanner.textContent = '正在载入原作品…';
+promptInput.before(remixBanner);
+if (baseGameId) {
+  fetch('/api/works/' + encodeURIComponent(baseGameId), { signal: AbortSignal.timeout(15000) })
+    .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.message); return data.game; })
+    .then(game => { remixBanner.textContent = `基于「${game.title}」继续修改 · 原作者：${game.author}。新版本保存到你的账号。`; promptInput.placeholder = '输入你想修改的内容，例如：增加关卡、改变玩法或画面…'; })
+    .catch(() => { baseInvalid = true; remixBanner.textContent = '原作品无法读取，请从作品页面重新选择。'; })
+    .finally(() => { baseLoading = false; refreshComposer(); });
+}
 let configured = false;
 let loggedIn = false;
 let sending = false;
@@ -15,7 +30,7 @@ let accountVersion = 0;
 let activeRequest;
 let gameWindow;
 function refreshComposer() {
-  sendMessage.disabled = sending || selecting || !configured || (!promptInput.value.trim() && !imageUrls.size);
+  sendMessage.disabled = baseLoading || baseInvalid || sending || selecting || !configured || (!promptInput.value.trim() && !imageUrls.size);
   addImage.disabled = sending || selecting;
   promptInput.readOnly = sending;
   for (const button of imagePreviews.querySelectorAll('button')) button.disabled = sending;
@@ -88,7 +103,7 @@ promptInput.addEventListener('keydown', event => {
   }
 });
 sendMessage.addEventListener('click', async () => {
-  if (sending || !configured || (!promptInput.value.trim() && !imageUrls.size)) return;
+  if (baseLoading || baseInvalid || sending || !configured || (!promptInput.value.trim() && !imageUrls.size)) return;
   if (!loggedIn) {
     document.getElementById('open-auth').click();
     showComposerStatus('登录后即可发送消息，输入内容会保留。');
@@ -117,7 +132,7 @@ sendMessage.addEventListener('click', async () => {
     const response = await fetch('/api/chat', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-App-Request': '1' },
-      body: JSON.stringify({ text, images }),
+      body: JSON.stringify({ text, images, baseGameId }),
       signal: AbortSignal.any([activeRequest.signal, AbortSignal.timeout(110000)])
     });
     const data = await response.json();
@@ -138,6 +153,9 @@ sendMessage.addEventListener('click', async () => {
     if (data.game && (!/^\/play\/[0-9a-f-]{36}$/.test(data.game.url) || !/^\/games\/[0-9a-f-]{36}\.html\?download=1$/.test(data.game.downloadUrl))) throw new Error('游戏地址异常，请重试。');
     appendChat('assistant', data.reply, [], data.game);
     if (data.game) {
+      baseGameId = undefined;
+      remixBanner.hidden = true;
+      window.history.replaceState(null, '', '/#home');
       window.dispatchEvent(new CustomEvent('gamecreated'));
       if (gameWindow && !gameWindow.closed) gameWindow.location.replace(data.game.url);
       else window.location.assign(data.game.url);

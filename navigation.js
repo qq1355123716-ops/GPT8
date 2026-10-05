@@ -20,7 +20,7 @@ function updatePage(focus = false) {
   navActivity.toggleAttribute('aria-current', activity);
   if (activity) navActivity.setAttribute('aria-current', 'page');
   else if (page === 'home') navHome.setAttribute('aria-current', 'page');
-  document.title = page === 'works' ? '我的作品 · 一句一游戏' : page === 'library' ? '我的游戏库 · 一句一游戏' : activity ? '动态 · 一句一游戏' : '一句一游戏';
+  document.title = page === 'works' ? '作品广场 · 一句一游戏' : page === 'library' ? '我的游戏库 · 一句一游戏' : activity ? '动态 · 一句一游戏' : '一句一游戏';
   if (focus) {
     (page === 'works' ? worksPage : page === 'library' ? libraryPage : activity ? activityPage : homePage).focus({ preventScroll: true });
     window.scrollTo(0, 0);

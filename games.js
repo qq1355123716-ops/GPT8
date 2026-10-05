@@ -17,6 +17,15 @@ function createGames(db, directory) {
     get(id, userId) {
       return db.prepare('SELECT id, title FROM games WHERE id = ? AND user_id = ?').get(id, userId);
     },
+    published(id) {
+      return db.prepare('SELECT games.id, title, created, users.username AS author FROM games JOIN users ON users.id = games.user_id WHERE games.id = ?').get(id);
+    },
+    works(page = 1) {
+      const pageSize = 24;
+      const total = db.prepare('SELECT COUNT(*) AS total FROM games').get().total;
+      const rows = db.prepare('SELECT games.id, title, created, users.username AS author FROM games JOIN users ON users.id = games.user_id ORDER BY created DESC, games.id DESC LIMIT ? OFFSET ?').all(pageSize, (page - 1) * pageSize);
+      return { games: rows.map(game => ({ ...game, url: `/play/${game.id}`, remixUrl: `/?remix=${game.id}#home` })), total, page, pageSize };
+    },
     list(userId, page = 1) {
       const pageSize = 24;
       const total = db.prepare('SELECT COUNT(*) AS total FROM games WHERE user_id = ?').get(userId).total;
@@ -31,7 +40,7 @@ function createGames(db, directory) {
     },
     preview(game) {
       const title = escapeHTML(game.title);
-      return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · 一句一游戏</title><style>*{box-sizing:border-box}body{margin:0;background:#1b1e30;color:#f2f4f6;font-family:system-ui,"Microsoft YaHei",sans-serif}header{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid #ffffff20}h1{font-size:16px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav{display:flex;gap:16px;white-space:nowrap}a{color:#c8f27b;font-size:13px;text-decoration:none}iframe{display:block;border:0;width:100%;height:calc(100dvh - 56px);background:#101426}</style></head><body><header><h1>${title}</h1><nav><a href="/#works">返回作品</a><a href="/#home">返回首页</a></nav></header><iframe src="/games/${game.id}.html" sandbox="allow-scripts" title="${title}"></iframe></body></html>`;
+      return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · 一句一游戏</title><style>*{box-sizing:border-box}body{margin:0;background:#1b1e30;color:#f2f4f6;font-family:system-ui,"Microsoft YaHei",sans-serif}header{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid #ffffff20}h1{font-size:16px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav{display:flex;gap:16px;white-space:nowrap}a{color:#c8f27b;font-size:13px;text-decoration:none}iframe{display:block;border:0;width:100%;height:calc(100dvh - 56px);background:#101426}</style></head><body><header><h1>${title}</h1><nav><a href="/?remix=${game.id}#home">继续修改</a><a href="/#works">返回作品</a><a href="/#home">返回首页</a></nav></header><iframe src="/games/${game.id}.html" sandbox="allow-scripts" title="${title}"></iframe></body></html>`;
     }
   };
 }

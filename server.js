@@ -43,8 +43,10 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
       const gameRoute = route.match(/^\/(play|games|source)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\.html)?$/);
       if (req.method === 'GET' && gameRoute) {
         const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
-        if (!session) return send(res, 401, { message: '请登录后打开游戏。' });
-        const game = games.get(gameRoute[2], session.user_id);
+        const download = new URL(req.url, origin).searchParams.get('download') === '1';
+        const publicRuntime = gameRoute[1] === 'play' || (gameRoute[1] === 'games' && !download);
+        if (!publicRuntime && !session) return send(res, 401, { message: '请登录后查看源文件。' });
+        const game = publicRuntime ? games.published(gameRoute[2]) : games.get(gameRoute[2], session.user_id);
         if (!game) return send(res, 404, { message: '游戏不存在或无权访问。' });
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store');
@@ -70,6 +72,16 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         return send(res, 200, { user: user ? { username: user.username } : null });
       }
       if (req.method === 'GET' && route === '/api/ai/status') return send(res, 200, { configured: ai.configured });
+      if (req.method === 'GET' && route === '/api/works') {
+        const page = Number(new URL(req.url, origin).searchParams.get('page') || 1);
+        if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return send(res, 400, { message: '页码无效。' });
+        return send(res, 200, games.works(page));
+      }
+      const workMatch = route.match(/^\/api\/works\/([0-9a-f-]{36})$/);
+      if (req.method === 'GET' && workMatch) {
+        const game = games.published(workMatch[1]);
+        return game ? send(res, 200, { game }) : send(res, 404, { message: '作品不存在。' });
+      }
       if (req.method === 'GET' && route === '/api/games') {
         const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
         if (!session) return send(res, 401, { message: '请先登录后查看你的游戏库。' });
@@ -103,7 +115,14 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         const disconnect = () => { if (!res.writableEnded) controller.abort(); };
         res.on('close', disconnect);
         try {
-          const result = await ai.reply(sessionHash, body, controller.signal);
+          let baseGame;
+          if (body?.baseGameId !== undefined) {
+            if (typeof body.baseGameId !== 'string' || !/^[0-9a-f-]{36}$/.test(body.baseGameId)) return send(res, 400, { message: '作品编号无效。' });
+            const original = games.published(body.baseGameId);
+            if (!original) return send(res, 404, { message: '原作品不存在。' });
+            baseGame = { title: original.title, html: games.html(original.id).toString('utf8') };
+          }
+          const result = await ai.reply(sessionHash, body, controller.signal, baseGame);
           // 退出登录或会话过期后，不返回此账号的对话内容。
           if (!db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now())) return send(res, 401, { message: '登录已失效，请重新登录。' });
           const game = result.html ? games.save(session.user_id, result.title, result.html) : null;
