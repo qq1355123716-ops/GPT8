@@ -124,3 +124,5 @@ if (window.location.hash === `#${kind}`) loadLibrary();
 }
 setupCollection('library');
 setupCollection('works');
+
+window.addEventListener('profilechange', () => { if (window.location.hash === '#works') document.getElementById('works-refresh').click(); });

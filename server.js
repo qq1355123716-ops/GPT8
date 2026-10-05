@@ -18,6 +18,11 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
   db.exec(`PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires INTEGER NOT NULL);`);
+  db.exec('CREATE TABLE IF NOT EXISTS profiles (user_id INTEGER PRIMARY KEY, display_name TEXT NOT NULL, avatar_mime TEXT, avatar_data BLOB, updated INTEGER NOT NULL)');
+  const profileUser = id => {
+    const row = db.prepare("SELECT users.username, COALESCE(NULLIF(profiles.display_name, ''), users.username) AS displayName, avatar_mime, updated FROM users LEFT JOIN profiles ON profiles.user_id = users.id WHERE users.id = ?").get(id);
+    return { username: row.username, displayName: row.displayName, avatarUrl: row.avatar_mime ? `/avatars/${id}?v=${row.updated}` : null };
+  };
   const games = createGames(db, gamesDirectory);
   db.exec('CREATE TABLE IF NOT EXISTS activities (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, content TEXT NOT NULL, created INTEGER NOT NULL)');
   const activities = createActivities(db);
@@ -28,6 +33,7 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
     '/composer.js': [readFileSync(path.join(__dirname, 'composer.js')), 'text/javascript; charset=utf-8'],
     '/navigation.js': [readFileSync(path.join(__dirname, 'navigation.js')), 'text/javascript; charset=utf-8'],
     '/library.js': [readFileSync(path.join(__dirname, 'library.js')), 'text/javascript; charset=utf-8'],
+    '/profile.js': [readFileSync(path.join(__dirname, 'profile.js')), 'text/javascript; charset=utf-8'],
     '/activity.js': [readFileSync(path.join(__dirname, 'activity.js')), 'text/javascript; charset=utf-8']
   };
   const attempts = new Map();
@@ -44,6 +50,14 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
     res.setHeader('Referrer-Policy', 'same-origin');
     try {
       const route = new URL(req.url, origin).pathname;
+      const avatarMatch = route.match(/^\/avatars\/([1-9][0-9]*)$/);
+      if (req.method === 'GET' && avatarMatch) {
+        const id = Number(avatarMatch[1]);
+        const avatar = Number.isSafeInteger(id) && db.prepare('SELECT avatar_mime, avatar_data FROM profiles WHERE user_id = ?').get(id);
+        if (!avatar?.avatar_data) return send(res, 404, { message: '头像不存在。' });
+        res.writeHead(200, { 'Content-Type': avatar.avatar_mime, 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'none'; sandbox" });
+        return res.end(Buffer.from(avatar.avatar_data));
+      }
       const activityImage = route.match(/^\/activity-images\/([0-9a-f-]{36})$/);
       if (req.method === 'GET' && activityImage) {
         const image = activities.image(activityImage[1]);
@@ -79,8 +93,8 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         return res.end(files[route][0]);
       }
       if (req.method === 'GET' && route === '/api/me') {
-        const user = db.prepare('SELECT users.username FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
-        return send(res, 200, { user: user ? { username: user.username } : null });
+        const user = db.prepare('SELECT users.id FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
+        return send(res, 200, { user: user ? profileUser(user.id) : null });
       }
       if (req.method === 'GET' && route === '/api/ai/status') return send(res, 200, { configured: ai.configured });
       if (req.method === 'GET' && route === '/api/works') {
@@ -105,8 +119,30 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         if (!Number.isSafeInteger(before) || before < 1) return send(res, 400, { message: '分页参数无效。' });
         return send(res, 200, activities.list(before));
       }
-      if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout', '/api/chat', '/api/activities'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
+      if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout', '/api/chat', '/api/activities', '/api/profile'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
       if (req.headers['x-app-request'] !== '1' || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { message: '请求来源无效，请从本站操作。' });
+      if (route === '/api/profile') {
+        const sessionHash = hashToken(tokenFrom(req));
+        const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now());
+        if (!session) return send(res, 401, { message: '请登录后修改个人资料。' });
+        if (!req.headers['content-type']?.startsWith('application/json')) return send(res, 415, { message: '请求格式无效。' });
+        const chunks = []; let size = 0;
+        for await (const chunk of req) { size += chunk.length; if (size > 3 * 1024 * 1024) return send(res, 413, { message: '头像不能超过 2 MB。' }); chunks.push(chunk); }
+        let body;
+        try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(res, 400, { message: '请求格式无效。' }); }
+        const name = typeof body?.displayName === 'string' ? body.displayName.trim().normalize('NFKC') : '';
+        if (!name || Array.from(name).length > 24 || /[\u0000-\u001f\u007f]/.test(name)) return send(res, 400, { message: '名称需为 1–24 个字符。' });
+        const previous = db.prepare('SELECT avatar_mime, avatar_data FROM profiles WHERE user_id = ?').get(session.user_id);
+        let avatar = { mime: previous?.avatar_mime || null, data: previous?.avatar_data || null };
+        if (body.avatar === null) avatar = { mime: null, data: null };
+        else if (body.avatar !== undefined) {
+          try { avatar = activities.validate([body.avatar])[0]; } catch (error) { return send(res, 400, { message: error.message }); }
+          if (avatar.data.length > 2 * 1024 * 1024) return send(res, 400, { message: '头像不能超过 2 MB。' });
+        }
+        if (!db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now())) return send(res, 401, { message: '登录已失效，请重新登录。' });
+        db.prepare('INSERT INTO profiles VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar_mime=excluded.avatar_mime, avatar_data=excluded.avatar_data, updated=excluded.updated').run(session.user_id, name, avatar.mime, avatar.data, Date.now());
+        return send(res, 200, { user: profileUser(session.user_id) });
+      }
       if (route === '/api/activities') {
         const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
         if (!session) return send(res, 401, { message: '请登录后发布动态。' });
@@ -209,7 +245,7 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
       db.prepare('DELETE FROM sessions WHERE expires <= ?').run(now);
       const token = randomBytes(32).toString('hex');
       db.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(hashToken(token), user.id, Date.now() + lifetime * 1000);
-      return send(res, route === '/api/register' ? 201 : 200, { user: { username: user.username } }, { 'Set-Cookie': cookie(token, lifetime) });
+      return send(res, route === '/api/register' ? 201 : 200, { user: profileUser(user.id) }, { 'Set-Cookie': cookie(token, lifetime) });
     } catch (error) {
       console.error('Account request failed:', error.code || error.name);
       if (!res.headersSent) send(res, 500, { message: '服务暂时不可用，请稍后重试。' });

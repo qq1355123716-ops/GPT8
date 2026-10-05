@@ -16,13 +16,20 @@ const menuStatus = document.getElementById('account-menu-status');
 let register = false;
 let pending = false;
 function showStatus(message) { status.textContent = message; status.hidden = false; }
-function setUser(user) {
+function setUser(user, notify = true) {
   accountDropdown.hidden = !user;
-  accountAvatar.setAttribute('aria-label', user ? `${user.username}，打开账户菜单` : '打开账户菜单');
-  accountAvatar.title = user ? user.username : '';
+  accountAvatar.setAttribute('aria-label', user ? `${user.displayName || user.username}，打开账户菜单` : '打开账户菜单');
+  accountAvatar.title = user ? (user.displayName || user.username) : '';
+  const avatarImage = document.getElementById('account-avatar-image');
+  const defaultAvatar = document.getElementById('account-avatar-default');
+  const avatarUrl = user?.avatarUrl;
+  const customAvatar = typeof avatarUrl === 'string' && /^\/avatars\/[1-9][0-9]*\?v=[0-9]+$/.test(avatarUrl);
+  avatarImage.hidden = !customAvatar;
+  defaultAvatar.hidden = customAvatar;
+  avatarImage.src = customAvatar ? avatarUrl : '';
   openAuth.hidden = Boolean(user);
   setMenuOpen(false);
-  window.dispatchEvent(new CustomEvent('authchange', { detail: { user } }));
+  window.dispatchEvent(new CustomEvent(notify ? 'authchange' : 'profilechange', { detail: { user } }));
 }
 function setMenuOpen(open) {
   accountMenu.hidden = !open;

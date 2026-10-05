@@ -192,6 +192,7 @@
       submit.textContent = '发布';
     }
   });
+  window.addEventListener('profilechange', () => { if (window.location.hash === '#activity') load(); });
   refresh.addEventListener('click', () => load());
   more.addEventListener('click', () => load(true));
   window.addEventListener('pagechange', event => { if (event.detail.page === 'activity') load(); });

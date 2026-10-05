@@ -22,7 +22,7 @@ function createActivities(db) {
       });
     },
     list(before) {
-      const rows = db.prepare('SELECT activities.id, content, created, users.username FROM activities JOIN users ON users.id = activities.user_id WHERE activities.id < ? ORDER BY activities.id DESC LIMIT 21').all(before);
+      const rows = db.prepare('SELECT activities.id, content, created, COALESCE(profiles.display_name, users.username) AS username FROM activities JOIN users ON users.id = activities.user_id LEFT JOIN profiles ON profiles.user_id = users.id WHERE activities.id < ? ORDER BY activities.id DESC LIMIT 21').all(before);
       return { activities: rows.slice(0, 20).map(describe), next: rows.length > 20 ? rows[19].id : null };
     },
     save(userId, content, images, created) {
@@ -30,7 +30,7 @@ function createActivities(db) {
       try {
         const result = db.prepare('INSERT INTO activities (user_id, content, created) VALUES (?, ?, ?)').run(userId, content, created);
         images.forEach((image, position) => db.prepare('INSERT INTO activity_images VALUES (?, ?, ?, ?, ?)').run(randomUUID(), result.lastInsertRowid, position, image.mime, image.data));
-        const row = db.prepare('SELECT activities.id, content, created, users.username FROM activities JOIN users ON users.id = activities.user_id WHERE activities.id = ?').get(result.lastInsertRowid);
+        const row = db.prepare('SELECT activities.id, content, created, COALESCE(profiles.display_name, users.username) AS username FROM activities JOIN users ON users.id = activities.user_id LEFT JOIN profiles ON profiles.user_id = users.id WHERE activities.id = ?').get(result.lastInsertRowid);
         const activity = describe(row);
         db.exec('COMMIT');
         return activity;

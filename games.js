@@ -18,12 +18,12 @@ function createGames(db, directory) {
       return db.prepare('SELECT id, title FROM games WHERE id = ? AND user_id = ?').get(id, userId);
     },
     published(id) {
-      return db.prepare('SELECT games.id, title, created, users.username AS author FROM games JOIN users ON users.id = games.user_id WHERE games.id = ?').get(id);
+      return db.prepare('SELECT games.id, title, created, COALESCE(profiles.display_name, users.username) AS author FROM games JOIN users ON users.id = games.user_id LEFT JOIN profiles ON profiles.user_id = users.id WHERE games.id = ?').get(id);
     },
     works(page = 1) {
       const pageSize = 24;
       const total = db.prepare('SELECT COUNT(*) AS total FROM games').get().total;
-      const rows = db.prepare('SELECT games.id, title, created, users.username AS author FROM games JOIN users ON users.id = games.user_id ORDER BY created DESC, games.id DESC LIMIT ? OFFSET ?').all(pageSize, (page - 1) * pageSize);
+      const rows = db.prepare('SELECT games.id, title, created, COALESCE(profiles.display_name, users.username) AS author FROM games JOIN users ON users.id = games.user_id LEFT JOIN profiles ON profiles.user_id = users.id ORDER BY created DESC, games.id DESC LIMIT ? OFFSET ?').all(pageSize, (page - 1) * pageSize);
       return { games: rows.map(game => ({ ...game, url: `/play/${game.id}`, remixUrl: `/?remix=${game.id}#home` })), total, page, pageSize };
     },
     list(userId, page = 1) {
