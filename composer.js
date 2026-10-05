@@ -41,11 +41,12 @@ closeRemix.addEventListener('click', () => {
   promptInput.focus();
 });
 if (baseGameId) {
-  fetch('/api/works/' + encodeURIComponent(baseGameId), { signal: AbortSignal.any([remixRequest.signal, AbortSignal.timeout(15000)]) })
+  const remixTimer = setTimeout(() => remixRequest.abort(), 15000);
+  fetch('/api/works/' + encodeURIComponent(baseGameId), { signal: remixRequest.signal })
     .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.message); return data.game; })
     .then(game => { if (remixRequest.signal.aborted) return; remixText.textContent = `基于「${game.title}」继续修改 · 原作者：${game.author}。新版本保存到你的账号。`; promptInput.placeholder = '输入你想修改的内容，例如：增加关卡、改变玩法或画面…'; })
     .catch(() => { if (remixRequest.signal.aborted) return; baseInvalid = true; remixText.textContent = '原作品无法读取，请从作品页面重新选择。'; })
-    .finally(() => { baseLoading = false; refreshComposer(); });
+    .finally(() => { clearTimeout(remixTimer); baseLoading = false; refreshComposer(); });
 }
 let configured = false;
 let loggedIn = false;
@@ -137,6 +138,7 @@ sendMessage.addEventListener('click', async () => {
   const version = accountVersion;
   const text = promptInput.value.trim();
   // 在用户点击时预先打开页面，避免 AI 返回后被浏览器拦截弹窗。
+  try {
   gameWindow = window.open('about:blank', '_blank');
   if (gameWindow) {
     gameWindow.opener = null;
@@ -147,8 +149,12 @@ sendMessage.addEventListener('click', async () => {
     gameWindow.document.body.style.background = '#1b1e30';
     gameWindow.document.body.append(waiting);
   }
+  } catch { gameWindow = undefined; }
   sending = true;
   activeRequest = new AbortController();
+  const requestController = activeRequest;
+  let timedOut = false;
+  const requestTimer = setTimeout(() => { timedOut = true; requestController.abort(); }, 110000);
   composerStatus.hidden = true;
   refreshComposer();
   try {
@@ -158,7 +164,7 @@ sendMessage.addEventListener('click', async () => {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-App-Request': '1' },
       body: JSON.stringify({ text, images, baseGameId }),
-      signal: AbortSignal.any([activeRequest.signal, AbortSignal.timeout(110000)])
+      signal: requestController.signal
     });
     const data = await response.json();
     if (version !== accountVersion) return;
@@ -198,8 +204,9 @@ sendMessage.addEventListener('click', async () => {
   } catch (error) {
     if (gameWindow && !gameWindow.closed) gameWindow.close();
     gameWindow = undefined;
-    if (version === accountVersion) showComposerStatus(error.message === 'Failed to fetch' ? '网络连接失败，请稍后重试。' : error.name === 'TimeoutError' ? 'AI 回复超时，请稍后重试。' : error.message);
+    if (version === accountVersion) showComposerStatus(error.message === 'Failed to fetch' ? '网络连接失败，请稍后重试。' : (timedOut || error.name === 'TimeoutError') ? 'AI 回复超时，请稍后重试。' : error.message);
   } finally {
+    clearTimeout(requestTimer);
     sending = false;
     activeRequest = undefined;
     refreshComposer();
