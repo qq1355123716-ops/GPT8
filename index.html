@@ -19,9 +19,20 @@
     .auth-button { border: 1px solid #ffffff29; border-radius: 100px; padding: 11px 22px; background: #ffffff06; color: var(--text); font-size: 13px; transition: background .2s, border-color .2s; }
     .auth-button:hover { background: #ffffff10; border-color: var(--accent); }
     .account { display: flex; align-items: center; gap: 12px; }
-    .account-avatar { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: #293222; border: 1px solid #c8f27b35; color: var(--accent); }
+    .account-dropdown { position: relative; }
+    .account-avatar { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #293222; border: 1px solid #c8f27b35; color: var(--accent); }
     .account-avatar svg { width: 25px; height: 25px; }
     .account-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+    .account-menu { position: absolute; right: 0; top: 100%; width: 200px; padding-top: 12px; }
+    .account-menu-panel { padding: 8px; border: 1px solid #ffffff20; border-radius: 14px; background: #191c20; box-shadow: 0 16px 48px #0007; }
+    .account-menu-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 0; border-radius: 8px; text-align: left; background: transparent; color: var(--text); font-size: 13px; }
+    .account-menu-item svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--muted); }
+    .account-menu-item:disabled { opacity: .75; cursor: default; }
+    .account-menu-item:not(:disabled):hover { background: #ffffff09; }
+    .account-menu-divider { border: 0; border-top: 1px solid #ffffff12; margin: 6px 4px; }
+    .account-menu-item.logout { color: #ffb0a5; }
+    .account-menu-item.logout svg { color: inherit; }
+    .account-menu-status { margin: 5px 12px 10px; font-size: 11px; line-height: 1.6; color: #ffb0a5; }
     button:disabled { opacity: .6; cursor: wait; }
     [hidden] { display: none !important; }
     main { max-width: 1280px; margin: auto; padding: 158px 40px 48px; }
@@ -80,7 +91,22 @@
   <header class="header">
     <div class="header-inner">
       <a class="brand" href="#" aria-label="一句一游戏首页"><span class="brand-icon" aria-hidden="true">✳</span>一句一游戏</a>
-      <div class="account"><span class="account-avatar" id="account-avatar" role="img" aria-label="已登录，默认头像" tabindex="-1" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21v-2a8 8 0 0 1 16 0v2" fill="currentColor"/></svg></span><button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button></div>
+      <div class="account">
+        <div class="account-dropdown" id="account-dropdown" hidden>
+          <button class="account-avatar" id="account-avatar" type="button" aria-label="打开账户菜单" aria-expanded="false" aria-controls="account-menu"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21v-2a8 8 0 0 1 16 0v2" fill="currentColor"/></svg></button>
+          <div class="account-menu" id="account-menu" aria-label="账户菜单" hidden>
+            <div class="account-menu-panel">
+              <button class="account-menu-item" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>个人资料</button>
+              <button class="account-menu-item" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>库</button>
+              <button class="account-menu-item" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>收藏历史</button>
+              <hr class="account-menu-divider">
+              <button class="account-menu-item logout" id="logout" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10 4H5v16h5M9 12h12m-4-4 4 4-4 4"/></svg><span id="logout-label">退出账号</span></button>
+              <p class="account-menu-status" id="account-menu-status" role="status" hidden></p>
+            </div>
+          </div>
+        </div>
+        <button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button>
+      </div>
     </div>
   </header>
   <main>

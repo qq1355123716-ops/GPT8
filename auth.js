@@ -8,15 +8,60 @@ const registerTab = document.getElementById('register-tab');
 const submit = document.getElementById('submit-auth');
 const openAuth = document.getElementById('open-auth');
 const accountAvatar = document.getElementById('account-avatar');
+const accountDropdown = document.getElementById('account-dropdown');
+const accountMenu = document.getElementById('account-menu');
+const logout = document.getElementById('logout');
+const logoutLabel = document.getElementById('logout-label');
+const menuStatus = document.getElementById('account-menu-status');
 let register = false;
 let pending = false;
 function showStatus(message) { status.textContent = message; status.hidden = false; }
 function setUser(user) {
-  accountAvatar.hidden = !user;
-  accountAvatar.setAttribute('aria-label', user ? `${user.username}，默认头像` : '默认头像');
+  accountDropdown.hidden = !user;
+  accountAvatar.setAttribute('aria-label', user ? `${user.username}，打开账户菜单` : '打开账户菜单');
   accountAvatar.title = user ? user.username : '';
   openAuth.hidden = Boolean(user);
+  setMenuOpen(false);
 }
+function setMenuOpen(open) {
+  accountMenu.hidden = !open;
+  accountAvatar.setAttribute('aria-expanded', String(open));
+}
+accountDropdown.addEventListener('mouseenter', () => setMenuOpen(true));
+accountDropdown.addEventListener('mouseleave', () => setMenuOpen(false));
+accountDropdown.addEventListener('focusin', () => setMenuOpen(true));
+accountDropdown.addEventListener('focusout', event => {
+  if (!accountDropdown.contains(event.relatedTarget)) setMenuOpen(false);
+});
+accountAvatar.addEventListener('click', () => setMenuOpen(true));
+document.addEventListener('pointerdown', event => {
+  if (!accountDropdown.contains(event.target)) setMenuOpen(false);
+});
+accountDropdown.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    accountAvatar.focus();
+    setMenuOpen(false);
+    event.preventDefault();
+  }
+});
+logout.addEventListener('click', async () => {
+  if (logout.disabled) return;
+  logout.disabled = true;
+  logoutLabel.textContent = '正在退出…';
+  menuStatus.hidden = true;
+  try {
+    await request('/api/logout', {});
+    setUser(null);
+    openAuth.focus();
+  } catch (error) {
+    menuStatus.textContent = error.message;
+    menuStatus.hidden = false;
+    setMenuOpen(true);
+  } finally {
+    logout.disabled = false;
+    logoutLabel.textContent = '退出账号';
+  }
+});
 async function request(route, body) {
   let response;
   try {
