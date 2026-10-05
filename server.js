@@ -17,7 +17,8 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
   const files = {
     '/': [readFileSync(path.join(__dirname, 'index.html')), 'text/html; charset=utf-8'],
     '/index.html': [readFileSync(path.join(__dirname, 'index.html')), 'text/html; charset=utf-8'],
-    '/auth.js': [readFileSync(path.join(__dirname, 'auth.js')), 'text/javascript; charset=utf-8']
+    '/auth.js': [readFileSync(path.join(__dirname, 'auth.js')), 'text/javascript; charset=utf-8'],
+    '/composer.js': [readFileSync(path.join(__dirname, 'composer.js')), 'text/javascript; charset=utf-8']
   };
   const attempts = new Map();
   const cookie = (token, age) => `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secure ? '; Secure' : ''}`;
