@@ -25,7 +25,8 @@ function setUser(user, notify = true) {
   const avatarUrl = user?.avatarUrl;
   const customAvatar = typeof avatarUrl === 'string' && /^\/avatars\/[1-9][0-9]*\?v=[0-9]+$/.test(avatarUrl);
   avatarImage.hidden = !customAvatar;
-  defaultAvatar.hidden = customAvatar;
+  if (customAvatar) defaultAvatar.setAttribute('hidden', '');
+  else defaultAvatar.removeAttribute('hidden');
   avatarImage.src = customAvatar ? avatarUrl : '';
   openAuth.hidden = Boolean(user);
   setMenuOpen(false);

@@ -11,6 +11,7 @@ function browser(fetchImpl) {
       value: '', hidden: false, handlers: {}, attrs: {},
       addEventListener(name, callback) { this.handlers[name] = callback; },
       setAttribute(name, value) { this.attrs[name] = value; },
+      removeAttribute(name) { delete this.attrs[name]; },
       contains() { return false; }, focus() {}, reset() {}, close() { this.handlers.close?.(); }
     });
     return elements.get(id);
@@ -52,4 +53,16 @@ test('stalled mobile requests time out and release the timer', async () => {
   for (const timeout of client.timers.values()) timeout();
   await assert.rejects(pending, /登录请求超时/);
   assert.equal(client.timers.size, 0);
+});
+
+test('custom avatar hides the default SVG through an HTML attribute and logout restores it', async () => {
+  const client = browser(async () => ({ ok: true, json: async () => ({ user: null }) }));
+  await vm.runInContext("request('/api/me')", client.context);
+  vm.runInContext("setUser({ username: 'avatar-test', avatarUrl: '/avatars/1?v=123' })", client.context);
+  assert.equal(client.element('account-avatar-image').hidden, false);
+  assert.equal(client.element('account-avatar-image').src, '/avatars/1?v=123');
+  assert.equal(Object.hasOwn(client.element('account-avatar-default').attrs, 'hidden'), true);
+  vm.runInContext('setUser(null)', client.context);
+  assert.equal(client.element('account-avatar-image').hidden, true);
+  assert.equal(Object.hasOwn(client.element('account-avatar-default').attrs, 'hidden'), false);
 });
