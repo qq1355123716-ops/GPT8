@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#101214">
+  <meta name="theme-color" content="#1b1e30">
   <title>一句一游戏</title>
   <style>
-    :root { color-scheme: dark; --bg: #101214; --panel: #191c20; --text: #f2f4f6; --muted: #969da7; --accent: #c8f27b; }
+    :root { color-scheme: dark; --bg: #1b1e30; --panel: #252940; --text: #f2f4f6; --muted: #a5acc1; --accent: #c8f27b; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 15% 10%, #8564c51a, transparent 60%), radial-gradient(ellipse at 90% 35%, #527ad91a, transparent 65%), var(--bg); color: var(--text); font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
     button, input { font: inherit; }
     button { cursor: pointer; }
     button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
-    .header { position: fixed; inset: 0 0 auto; z-index: 10; height: 80px; background: rgba(16,18,20,.92); border-bottom: 1px solid #ffffff12; backdrop-filter: blur(18px); }
+    .header { position: fixed; inset: 0 0 auto; z-index: 10; height: 80px; background: rgba(27,30,48,.94); border-bottom: 1px solid #a8b6f01f; backdrop-filter: blur(18px); }
     .header-inner { width: 100%; height: 100%; padding: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
     .brand { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; font-size: 20px; font-weight: 750; letter-spacing: 1px; }
     .brand-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #182111; display: grid; place-items: center; font-size: 24px; font-weight: 500; }
@@ -20,11 +20,11 @@
     .auth-button:hover { background: #ffffff10; border-color: var(--accent); }
     .account { display: flex; align-items: center; gap: 12px; }
     .account-dropdown { position: relative; }
-    .account-avatar { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #293222; border: 1px solid #c8f27b35; color: var(--accent); }
+    .account-avatar { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: #30364a; border: 1px solid #c8f27b35; color: var(--accent); }
     .account-avatar svg { width: 25px; height: 25px; }
     .account-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
     .account-menu { position: absolute; right: 0; top: 100%; width: 200px; padding-top: 12px; }
-    .account-menu-panel { padding: 8px; border: 1px solid #ffffff20; border-radius: 14px; background: #191c20; box-shadow: 0 16px 48px #0007; }
+    .account-menu-panel { padding: 8px; border: 1px solid #ffffff20; border-radius: 14px; background: var(--panel); box-shadow: 0 16px 48px #10132680; }
     .account-menu-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 0; border-radius: 8px; text-align: left; background: transparent; color: var(--text); font-size: 13px; }
     .account-menu-item svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--muted); }
     .account-menu-item:disabled { opacity: .75; cursor: default; }
@@ -45,7 +45,7 @@
     .idea { max-width: 660px; margin: 38px auto 0; padding: 22px 24px; background: var(--panel); border: 1px solid #ffffff16; border-radius: 16px; text-align: left; display: flex; align-items: center; gap: 18px; }
     .idea-symbol { flex-shrink: 0; color: var(--accent); font-size: 26px; }
     .idea p { margin: 0; font-size: 14px; color: #c1c6cc; line-height: 1.8; }
-    .idea small { display: block; margin-top: 5px; font-size: 11px; color: #777f8a; }
+    .idea small { display: block; margin-top: 5px; font-size: 11px; color: #949cb5; }
     .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 0 20px; gap: 12px; }
     .section-heading h2 { font-size: 17px; margin: 0; font-weight: 600; }
     .section-heading span { color: var(--muted); font-size: 12px; }
@@ -69,17 +69,17 @@
     .tag { font-size: 10px; color: var(--accent); letter-spacing: 1px; }
     .card h3 { margin: 10px 0; font-size: 17px; font-weight: 600; }
     .card p { color: var(--muted); font-size: 12px; margin: 0; line-height: 1.8; }
-    footer { margin-top: 48px; border-top: 1px solid #ffffff12; padding-top: 22px; display: flex; justify-content: space-between; gap: 16px; font-size: 11px; color: #707780; }
-    dialog { width: min(420px, calc(100% - 32px)); border: 1px solid #ffffff22; border-radius: 20px; padding: 30px; background: #191c20; color: var(--text); }
+    footer { margin-top: 48px; border-top: 1px solid #ffffff12; padding-top: 22px; display: flex; justify-content: space-between; gap: 16px; font-size: 11px; color: #949cb5; }
+    dialog { width: min(420px, calc(100% - 32px)); border: 1px solid #ffffff22; border-radius: 20px; padding: 30px; background: var(--panel); color: var(--text); }
     dialog::backdrop { background: #0009; backdrop-filter: blur(5px); }
     .dialog-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     .dialog-top h2 { margin: 0; font-size: 21px; }
     .close { border: 0; color: var(--muted); background: transparent; font-size: 26px; padding: 0 5px; }
-    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #101214; padding: 5px; border-radius: 10px; margin-bottom: 22px; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--bg); padding: 5px; border-radius: 10px; margin-bottom: 22px; }
     .tabs button { padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
-    .tabs button[aria-pressed="true"] { background: #30352d; color: var(--accent); }
+    .tabs button[aria-pressed="true"] { background: #353c50; color: var(--accent); }
     label { display: block; font-size: 12px; color: #b6bdc5; margin-bottom: 8px; }
-    input { width: 100%; padding: 12px; border: 1px solid #ffffff22; border-radius: 9px; background: #101214; color: white; margin-bottom: 18px; }
+    input { width: 100%; padding: 12px; border: 1px solid #ffffff22; border-radius: 9px; background: var(--bg); color: white; margin-bottom: 18px; }
     .submit { width: 100%; background: var(--accent); color: #1b2612; font-weight: 650; border: 0; border-radius: 9px; padding: 12px; }
     .notice { font-size: 11px; color: var(--muted); line-height: 1.8; margin: 16px 0 0; }
     #status { color: var(--accent); font-size: 12px; line-height: 1.7; }
