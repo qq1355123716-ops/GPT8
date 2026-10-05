@@ -18,6 +18,10 @@
     .brand-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #182111; display: grid; place-items: center; font-size: 24px; font-weight: 500; }
     .auth-button { border: 1px solid #ffffff29; border-radius: 100px; padding: 11px 22px; background: #ffffff06; color: var(--text); font-size: 13px; transition: background .2s, border-color .2s; }
     .auth-button:hover { background: #ffffff10; border-color: var(--accent); }
+    .account { display: flex; align-items: center; gap: 12px; }
+    .account-name { color: var(--accent); font-size: 13px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    button:disabled { opacity: .6; cursor: wait; }
+    [hidden] { display: none !important; }
     main { max-width: 1280px; margin: auto; padding: 158px 40px 48px; }
     .hero { text-align: center; position: relative; padding: 36px 0 54px; }
     .eyebrow { display: inline-flex; align-items: center; gap: 9px; font-size: 11px; letter-spacing: 2px; color: var(--accent); }
@@ -74,7 +78,7 @@
   <header class="header">
     <div class="header-inner">
       <a class="brand" href="#" aria-label="一句一游戏首页"><span class="brand-icon" aria-hidden="true">✳</span>一句一游戏</a>
-      <button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button>
+      <div class="account"><span class="account-name" id="account-name" hidden></span><button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button><button class="auth-button" id="logout" type="button" hidden>退出</button></div>
     </div>
   </header>
   <main>
@@ -98,45 +102,13 @@
     <div class="dialog-top"><h2 id="auth-title">欢迎来到一句一游戏</h2><button class="close" id="close-auth" type="button" aria-label="关闭">×</button></div>
     <div class="tabs" role="group" aria-label="选择登录或注册"><button id="login-tab" type="button" aria-pressed="true">登录</button><button id="register-tab" type="button" aria-pressed="false">注册</button></div>
     <form id="auth-form">
-      <label for="username">用户名</label><input id="username" name="username" type="text" autocomplete="username" placeholder="请输入用户名" required>
-      <label for="password">密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required>
+      <label for="username">用户名</label><input id="username" name="username" type="text" autocomplete="username" placeholder="请输入用户名" minlength="2" maxlength="24" required>
+      <label for="password">密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" maxlength="128" required>
       <button class="submit" id="submit-auth" type="submit">登录</button>
-      <p class="notice">当前为界面演示，尚未连接账户服务。请勿输入真实密码。</p>
+      <p class="notice">无需邮箱。用户名支持 2–24 位中文、字母、数字、下划线或短横线；注册密码至少 8 位。</p>
       <p id="status" role="status" hidden></p>
     </form>
   </dialog>
-  <script>
-    const dialog = document.getElementById('auth-dialog');
-    const form = document.getElementById('auth-form');
-    const password = document.getElementById('password');
-    const status = document.getElementById('status');
-    const loginTab = document.getElementById('login-tab');
-    const registerTab = document.getElementById('register-tab');
-    document.getElementById('open-auth').addEventListener('click', () => dialog.showModal());
-    document.getElementById('close-auth').addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', (event) => {
-      const rect = dialog.getBoundingClientRect();
-      if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
-    });
-    dialog.addEventListener('close', () => { form.reset(); status.hidden = true; });
-    function setMode(register) {
-      loginTab.setAttribute('aria-pressed', String(!register));
-      registerTab.setAttribute('aria-pressed', String(register));
-      password.autocomplete = register ? 'new-password' : 'current-password';
-      password.minLength = register ? 8 : 1;
-      password.placeholder = register ? '请设置至少 8 位密码' : '请输入密码';
-      password.value = '';
-      document.getElementById('submit-auth').textContent = register ? '创建账户' : '登录';
-      status.hidden = true;
-    }
-    loginTab.addEventListener('click', () => setMode(false));
-    registerTab.addEventListener('click', () => setMode(true));
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      password.value = '';
-      status.textContent = '账户服务尚未接入，暂时无法完成登录或注册。';
-      status.hidden = false;
-    });
-  </script>
+  <script src="/auth.js" defer></script>
 </body>
 </html>
