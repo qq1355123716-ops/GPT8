@@ -19,7 +19,9 @@
     .auth-button { border: 1px solid #ffffff29; border-radius: 100px; padding: 11px 22px; background: #ffffff06; color: var(--text); font-size: 13px; transition: background .2s, border-color .2s; }
     .auth-button:hover { background: #ffffff10; border-color: var(--accent); }
     .account { display: flex; align-items: center; gap: 12px; }
-    .account-name { color: var(--accent); font-size: 13px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .account-avatar { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: #293222; border: 1px solid #c8f27b35; color: var(--accent); }
+    .account-avatar svg { width: 25px; height: 25px; }
+    .account-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
     button:disabled { opacity: .6; cursor: wait; }
     [hidden] { display: none !important; }
     main { max-width: 1280px; margin: auto; padding: 158px 40px 48px; }
@@ -78,7 +80,7 @@
   <header class="header">
     <div class="header-inner">
       <a class="brand" href="#" aria-label="一句一游戏首页"><span class="brand-icon" aria-hidden="true">✳</span>一句一游戏</a>
-      <div class="account"><span class="account-name" id="account-name" hidden></span><button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button><button class="auth-button" id="logout" type="button" hidden>退出</button></div>
+      <div class="account"><span class="account-avatar" id="account-avatar" role="img" aria-label="已登录，默认头像" tabindex="-1" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21v-2a8 8 0 0 1 16 0v2" fill="currentColor"/></svg></span><button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button></div>
     </div>
   </header>
   <main>

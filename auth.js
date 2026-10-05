@@ -7,15 +7,14 @@ const loginTab = document.getElementById('login-tab');
 const registerTab = document.getElementById('register-tab');
 const submit = document.getElementById('submit-auth');
 const openAuth = document.getElementById('open-auth');
-const logout = document.getElementById('logout');
-const accountName = document.getElementById('account-name');
+const accountAvatar = document.getElementById('account-avatar');
 let register = false;
 let pending = false;
 function showStatus(message) { status.textContent = message; status.hidden = false; }
 function setUser(user) {
-  accountName.textContent = user ? user.username : '';
-  accountName.hidden = !user;
-  logout.hidden = !user;
+  accountAvatar.hidden = !user;
+  accountAvatar.setAttribute('aria-label', user ? `${user.username}，默认头像` : '默认头像');
+  accountAvatar.title = user ? user.username : '';
   openAuth.hidden = Boolean(user);
 }
 async function request(route, body) {
@@ -64,7 +63,7 @@ form.addEventListener('submit', async event => {
     const data = await request(register ? '/api/register' : '/api/login', { username: username.value.trim(), password: password.value });
     setUser(data.user);
     dialog.close();
-    logout.focus();
+    accountAvatar.focus();
   } catch (error) { showStatus(error.message); }
   finally {
     password.value = '';
@@ -72,12 +71,6 @@ form.addEventListener('submit', async event => {
     submit.disabled = loginTab.disabled = registerTab.disabled = false;
     submit.textContent = register ? '创建账户' : '登录';
   }
-});
-logout.addEventListener('click', async () => {
-  logout.disabled = true;
-  try { await request('/api/logout', {}); setUser(null); openAuth.focus(); }
-  catch (error) { dialog.showModal(); showStatus(error.message); }
-  finally { logout.disabled = false; }
 });
 request('/api/me').then(data => setUser(data.user)).catch(error => {
   showStatus(error.message);
