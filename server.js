@@ -8,14 +8,16 @@ const derive = promisify(scrypt);
 const hashToken = token => createHash('sha256').update(token).digest('hex');
 const lifetime = 7 * 24 * 60 * 60;
 const { createAI } = require('./ai');
+const { createGames } = require('./games');
 
-function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlite'), origin = 'http://localhost:3000', secure = false, aiOptions = {} } = {}) {
+function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlite'), origin = 'http://localhost:3000', secure = false, aiOptions = {}, gamesDirectory = path.join(databasePath === ':memory:' ? path.join(__dirname, 'data') : path.dirname(databasePath), 'games') } = {}) {
   const ai = createAI(aiOptions);
   if (databasePath !== ':memory:') mkdirSync(path.dirname(databasePath), { recursive: true });
   const db = new DatabaseSync(databasePath);
   db.exec(`PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires INTEGER NOT NULL);`);
+  const games = createGames(db, gamesDirectory);
   const files = {
     '/': [readFileSync(path.join(__dirname, 'index.html')), 'text/html; charset=utf-8'],
     '/index.html': [readFileSync(path.join(__dirname, 'index.html')), 'text/html; charset=utf-8'],
@@ -37,6 +39,23 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
     res.setHeader('Referrer-Policy', 'same-origin');
     try {
       const route = new URL(req.url, origin).pathname;
+      const gameRoute = route.match(/^\/(play|games)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\.html)?$/);
+      if (req.method === 'GET' && gameRoute) {
+        const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
+        if (!session) return send(res, 401, { message: '请登录后打开游戏。' });
+        const game = games.get(gameRoute[2], session.user_id);
+        if (!game) return send(res, 404, { message: '游戏不存在或无权访问。' });
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        if (gameRoute[1] === 'play') {
+          res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+          return res.end(games.preview(game));
+        }
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        res.setHeader('Content-Security-Policy', "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+        if (new URL(req.url, origin).searchParams.get('download') === '1') res.setHeader('Content-Disposition', `attachment; filename="${game.id}.html"`);
+        return res.end(games.html(game.id));
+      }
       if (req.method === 'GET' && files[route]) {
         res.writeHead(200, { 'Content-Type': files[route][1], 'Cache-Control': 'no-cache' });
         return res.end(files[route][0]);
@@ -72,10 +91,11 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         const disconnect = () => { if (!res.writableEnded) controller.abort(); };
         res.on('close', disconnect);
         try {
-          const reply = await ai.reply(sessionHash, body, controller.signal);
+          const result = await ai.reply(sessionHash, body, controller.signal);
           // 退出登录或会话过期后，不返回此账号的对话内容。
           if (!db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now())) return send(res, 401, { message: '登录已失效，请重新登录。' });
-          return send(res, 200, { reply });
+          const game = result.html ? games.save(session.user_id, result.title, result.html) : null;
+          return send(res, 200, { reply: result.reply, game });
         } catch (error) { if (!res.destroyed) return send(res, error.status || 500, { message: error.message }); }
         finally { res.off('close', disconnect); }
         return;

@@ -13,18 +13,19 @@ let sending = false;
 let selecting = false;
 let accountVersion = 0;
 let activeRequest;
+let gameWindow;
 function refreshComposer() {
   sendMessage.disabled = sending || selecting || !configured || (!promptInput.value.trim() && !imageUrls.size);
   addImage.disabled = sending || selecting;
   promptInput.readOnly = sending;
   for (const button of imagePreviews.querySelectorAll('button')) button.disabled = sending;
-  composerHint.textContent = sending ? 'AI 正在回复…' : !configured ? 'AI 暂不可用' : !loggedIn ? '登录后开始对话' : 'Ctrl + Enter 发送';
+  composerHint.textContent = sending ? '正在制作游戏…' : !configured ? 'AI 暂不可用' : !loggedIn ? '登录后开始创作' : 'Ctrl + Enter 生成';
 }
 function showComposerStatus(message) {
   composerStatus.textContent = message;
   composerStatus.hidden = false;
 }
-function appendChat(role, text, images = []) {
+function appendChat(role, text, images = [], game = null) {
   const item = document.createElement('article');
   item.className = `chat-message ${role}`;
   const label = document.createElement('div');
@@ -39,6 +40,20 @@ function appendChat(role, text, images = []) {
     list.className = 'chat-message-images';
     images.forEach(src => { const img = document.createElement('img'); img.src = src; img.alt = '发送的参考图片'; list.append(img); });
     item.append(list);
+  }
+  if (game) {
+    const links = document.createElement('div');
+    links.className = 'game-links';
+    const open = document.createElement('a');
+    open.href = game.url;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    open.textContent = `打开游戏 · ${game.title}`;
+    const download = document.createElement('a');
+    download.href = game.downloadUrl;
+    download.textContent = '下载 HTML';
+    links.append(open, download);
+    item.append(links);
   }
   chatHistory.append(item);
   // 避免长时间对话在浏览器中累积大量图片和内容。
@@ -58,6 +73,8 @@ window.addEventListener('authchange', event => {
   loggedIn = Boolean(event.detail.user);
   accountVersion++;
   activeRequest?.abort();
+  if (gameWindow && !gameWindow.closed) gameWindow.close();
+  gameWindow = undefined;
   chatHistory.replaceChildren();
   chatHistory.hidden = true;
   composerStatus.hidden = true;
@@ -79,6 +96,17 @@ sendMessage.addEventListener('click', async () => {
   }
   const version = accountVersion;
   const text = promptInput.value.trim();
+  // 在用户点击时预先打开页面，避免 AI 返回后被浏览器拦截弹窗。
+  gameWindow = window.open('about:blank', '_blank');
+  if (gameWindow) {
+    gameWindow.opener = null;
+    gameWindow.document.title = '正在制作游戏 · 一句一游戏';
+    const waiting = gameWindow.document.createElement('p');
+    waiting.textContent = '正在制作你的游戏，完成后会自动打开…';
+    waiting.style.cssText = 'padding:40px;font:16px system-ui;color:#c8f27b;';
+    gameWindow.document.body.style.background = '#1b1e30';
+    gameWindow.document.body.append(waiting);
+  }
   sending = true;
   activeRequest = new AbortController();
   composerStatus.hidden = true;
@@ -107,13 +135,25 @@ sendMessage.addEventListener('click', async () => {
     }
     if (typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('AI 回复异常，请重试。');
     appendChat('user', text || '请参考这些图片。', images);
-    appendChat('assistant', data.reply);
+    if (data.game && (!/^\/play\/[0-9a-f-]{36}$/.test(data.game.url) || !/^\/games\/[0-9a-f-]{36}\.html\?download=1$/.test(data.game.downloadUrl))) throw new Error('游戏地址异常，请重试。');
+    appendChat('assistant', data.reply, [], data.game);
+    if (data.game) {
+      if (gameWindow && !gameWindow.closed) gameWindow.location.replace(data.game.url);
+      else window.location.assign(data.game.url);
+      gameWindow = undefined;
+      showComposerStatus(`游戏已保存为 ${data.game.filename}，已自动打开。`);
+    } else {
+      if (gameWindow && !gameWindow.closed) gameWindow.close();
+      gameWindow = undefined;
+    }
     promptInput.value = '';
     for (const url of imageUrls.keys()) URL.revokeObjectURL(url);
     imageUrls.clear();
     imagePreviews.replaceChildren();
     imagePreviews.hidden = true;
   } catch (error) {
+    if (gameWindow && !gameWindow.closed) gameWindow.close();
+    gameWindow = undefined;
     if (version === accountVersion) showComposerStatus(error.message === 'Failed to fetch' ? '网络连接失败，请稍后重试。' : error.name === 'TimeoutError' ? 'AI 回复超时，请稍后重试。' : error.message);
   } finally {
     sending = false;

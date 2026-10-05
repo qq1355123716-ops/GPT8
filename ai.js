@@ -1,4 +1,7 @@
-const instructions = '你是“一句一游戏”的游戏创意助手。用中文帮助用户把一句灵感发展成游戏想法、玩法和实现方案，结合参考图片。回答简洁具体，可按需要给出代码。不要声称已经创建、运行、保存或发布游戏，除非系统确实执行了这些动作。';
+const instructions = `你是“一句一游戏”的游戏设计与开发助手。只输出一个合法 JSON 对象，格式为 {"reply":"中文说明与操作方法","title":"游戏名称","html":"完整单文件HTML或空字符串"}，不要输出 Markdown 代码围栏。
+用户提出游戏想法、要求制作或修改游戏时，直接实现一个可玩的游戏，把完整源码写入 html。不要只描述设计，也不要要求用户确认。信息不足时做合理选择。根据文字和参考图片设计游戏，提供明确目标、计分或胜负条件、开始与重新开始按钮，同时适配鼠标、键盘与手机触摸。
+html 必须以 <!DOCTYPE html> 开头，包含完整 html/head/body、UTF-8、viewport，CSS 与 JavaScript 全部内联，所有代码完整不可省略。只能使用原生 HTML/CSS/JavaScript、Canvas、内联 SVG 或 data 图片，不依赖 CDN、网络请求、外部文件、iframe、存储或父页面 API。不跳转、不打开窗口、不发送网络请求。所有游戏操作在当前文档内完成。
+修改之前游戏时返回修改后的完整 HTML，不返回补丁。仅当用户只是闲聊、询问信息且没有制作或修改需求时，html 设为空字符串。reply 简短介绍玩法，不声称服务器已经保存或发布文件。`;
 class ChatError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -46,7 +49,7 @@ function createAI({ apiKey = process.env.DEEPSEEK_API_KEY || '', model = process
         const content = [{ type: 'input_text', text: text || '请根据这些参考图片帮我构思游戏。' }, ...images.map(image_url => ({ type: 'input_image', image_url, detail: 'auto' }))];
         const response = await fetchImpl('https://api.deepseek.com/responses', {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ model, instructions, reasoning: { effort: 'none' }, max_output_tokens: 4096, input: [...state.history, { role: 'user', content }] }),
+          body: JSON.stringify({ model, instructions, reasoning: { effort: 'none' }, text: { format: { type: 'json_object' } }, max_output_tokens: 16000, input: [...state.history, { role: 'user', content }] }),
           signal: AbortSignal.any([AbortSignal.timeout(90000), ...(signal ? [signal] : [])])
         });
         if (!response.ok) {
@@ -59,9 +62,14 @@ function createAI({ apiKey = process.env.DEEPSEEK_API_KEY || '', model = process
         const reply = (data.output || []).filter(item => item.type === 'message').flatMap(item => item.content || []).map(item => item.type === 'output_text' ? item.text : item.type === 'refusal' ? item.refusal : '').join('\n').trim();
         if (!reply || data.status === 'incomplete') throw new ChatError(502, 'AI 回复未完成，请缩短问题后重试。');
         if (signal?.aborted) throw new ChatError(499, '请求已取消。');
-        // 只保留最近的文字上下文，不在服务端累积图片。
-        state.history = [...state.history, { role: 'user', content: text || '[用户提供了参考图片]' }, { role: 'assistant', content: reply }].slice(-12);
-        return reply;
+        let result;
+        try { result = JSON.parse(reply); } catch { throw new ChatError(502, '游戏生成格式异常，请重试。'); }
+        if (!result || typeof result.reply !== 'string' || !result.reply.trim() || typeof result.html !== 'string' || typeof result.title !== 'string') throw new ChatError(502, '游戏生成格式异常，请重试。');
+        const html = result.html.trim();
+        if (html && (!/^<!doctype html>/i.test(html) || !/<html[\s>]/i.test(html) || !/<\/html>\s*$/i.test(html) || !/<body[\s>]/i.test(html) || Buffer.byteLength(html) > 512 * 1024)) throw new ChatError(502, '游戏 HTML 不完整或过大，请重试。');
+        // 保存最近游戏的完整代码，使下一轮能修改它；仅保留两轮，控制上下文大小。
+        state.history = [...state.history, { role: 'user', content: text || '[用户提供了参考图片]' }, { role: 'assistant', content: JSON.stringify({ reply: result.reply, title: result.title, html }) }].slice(-4);
+        return { reply: result.reply.trim(), title: result.title.trim().slice(0, 80) || '我的游戏', html };
       } catch (error) {
         if (error instanceof ChatError) throw error;
         throw new ChatError(502, signal?.aborted ? '请求已取消。' : '无法连接 AI 服务或请求超时，请稍后重试。');
