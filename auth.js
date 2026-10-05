@@ -65,18 +65,22 @@ logout.addEventListener('click', async () => {
   }
 });
 async function request(route, body) {
-  let response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    response = await fetch(route, {
-      method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin',
-      headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-App-Request': '1' },
-      body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000)
-    });
-  } catch { throw new Error('无法连接账户服务，请检查网络并确认服务已启动。'); }
-  let data;
-  try { data = await response.json(); } catch { throw new Error('账户服务响应异常，请通过网站服务地址访问。'); }
-  if (!response.ok) throw new Error(data.message || '操作失败，请稍后重试。');
-  return data;
+    let response;
+    try {
+      response = await fetch(route, {
+        method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin',
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-App-Request': '1' },
+        body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal
+      });
+    } catch { throw new Error(controller.signal.aborted ? '登录请求超时，请检查网络后重试。' : '无法连接账户服务，请检查网络并确认服务已启动。'); }
+    let data;
+    try { data = await response.json(); } catch { throw new Error(controller.signal.aborted ? '登录请求超时，请检查网络后重试。' : '账户服务响应异常，请通过网站服务地址访问。'); }
+    if (!response.ok) throw new Error(data.message || '操作失败，请稍后重试。');
+    return data;
+  } finally { clearTimeout(timer); }
 }
 openAuth.addEventListener('click', () => dialog.showModal());
 document.getElementById('close-auth').addEventListener('click', () => dialog.close());
