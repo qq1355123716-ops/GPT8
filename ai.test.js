@@ -31,8 +31,8 @@ test('AI endpoint enforces login, forwards images and isolates conversation cont
     const first = await api('/api/register', { username: 'user1', password: 'password123' });
     const second = await api('/api/register', { username: 'user2', password: 'password123' });
     assert.equal((await api('/api/chat', { text: '星球游戏', images: [image] }, first.cookie)).status, 200);
-    assert.equal(calls[0].url, 'https://api.openai.com/v1/responses');
-    assert.equal(calls[0].body.store, false);
+    assert.equal(calls[0].url, 'https://api.deepseek.com/responses');
+    assert.deepEqual(calls[0].body.reasoning, { effort: 'none' });
     assert.equal(calls[0].body.model, 'test-model');
     assert.equal(calls[0].body.input[0].content[1].image_url, image);
     const next = await api('/api/chat', { text: '继续完善', images: [] }, first.cookie);
@@ -65,7 +65,7 @@ test('upstream errors never expose provider response or API secrets', async () =
   await assert.rejects(ai.reply('session', { text: '你好', images: [] }), error => error.status === 502 && !error.message.includes('test-only-secret'));
   const incomplete = createAI({ apiKey: 'test-only-secret', fetchImpl: async () => new Response(JSON.stringify({ status: 'incomplete', output: [] })) });
   await assert.rejects(incomplete.reply('session', { text: '你好', images: [] }), error => error.status === 502);
-  const quota = createAI({ apiKey: 'test-only-secret', fetchImpl: async () => new Response(JSON.stringify({ error: { type: 'insufficient_quota', code: 'credit_balance_exhausted' } }), { status: 429 }) });
+  const quota = createAI({ apiKey: 'test-only-secret', fetchImpl: async () => new Response(JSON.stringify({ error: { message: 'Insufficient Balance' } }), { status: 402 }) });
   await assert.rejects(quota.reply('session', { text: '你好', images: [] }), error => error.status === 502 && error.message.includes('余额或额度不足'));
 });
 test('concurrent requests are blocked; logout removes context; requests are limited', async () => {

@@ -172,7 +172,7 @@ imageInput.addEventListener('change', async () => {
     composerStatus.hidden = errors.length === 0;
   } finally { selecting = false; refreshComposer(); }
 });
-// 仅点击发送时上传图片到服务端，再由服务端发送给 OpenAI。
+// 仅点击发送时上传图片到服务端，再由服务端发送给 DeepSeek。
 window.addEventListener('pagehide', event => {
   if (!event.persisted) {
     activeRequest?.abort();
