@@ -42,7 +42,7 @@ accountDropdown.addEventListener('focusout', event => {
   if (!accountDropdown.contains(event.relatedTarget)) setMenuOpen(false);
 });
 accountAvatar.addEventListener('click', () => setMenuOpen(true));
-document.getElementById('open-library').addEventListener('click', () => setMenuOpen(false));
+['open-library', 'open-favorites'].forEach(id => document.getElementById(id).addEventListener('click', () => setMenuOpen(false)));
 document.addEventListener('pointerdown', event => {
   if (!accountDropdown.contains(event.target)) setMenuOpen(false);
 });

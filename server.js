@@ -11,8 +11,10 @@ const { createAI } = require('./ai');
 const { createGames } = require('./games');
 const { createActivities } = require('./activities');
 
-function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlite'), origin = 'http://localhost:3000', secure = false, aiOptions = {}, gamesDirectory = path.join(databasePath === ':memory:' ? path.join(__dirname, 'data') : path.dirname(databasePath), 'games') } = {}) {
+function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlite'), origin = 'http://localhost:3000', secure = false, aiOptions = {}, doubaoOptions = {}, gamesDirectory = path.join(databasePath === ':memory:' ? path.join(__dirname, 'data') : path.dirname(databasePath), 'games') } = {}) {
   const ai = createAI(aiOptions);
+  const doubao = createAI({ ...doubaoOptions, provider: 'doubao' });
+  const aiProviders = { deepseek: ai, doubao };
   if (databasePath !== ':memory:') mkdirSync(path.dirname(databasePath), { recursive: true });
   const db = new DatabaseSync(databasePath);
   db.exec(`PRAGMA journal_mode = WAL;
@@ -96,11 +98,28 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         const user = db.prepare('SELECT users.id FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
         return send(res, 200, { user: user ? profileUser(user.id) : null });
       }
-      if (req.method === 'GET' && route === '/api/ai/status') return send(res, 200, { configured: ai.configured });
+      if (req.method === 'GET' && route === '/api/ai/status') return send(res, 200, { configured: ai.configured || doubao.configured, providers: { deepseek: { configured: ai.configured }, doubao: { configured: doubao.configured } } });
+      const viewer = () => db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
+      const authorMatch = route.match(/^\/api\/authors\/([1-9][0-9]*)$/);
+      if (req.method === 'GET' && authorMatch) {
+        const id = Number(authorMatch[1]);
+        if (!Number.isSafeInteger(id) || !db.prepare('SELECT id FROM users WHERE id = ?').get(id)) return send(res, 404, { message: '作者不存在。' });
+        const page = Number(new URL(req.url, origin).searchParams.get('page') || 1);
+        if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return send(res, 400, { message: '页码无效。' });
+        const user = profileUser(id);
+        return send(res, 200, { author: { id, displayName: user.displayName, avatarUrl: user.avatarUrl }, ...games.works(page, viewer()?.user_id, { authorId: id }) });
+      }
+      if (req.method === 'GET' && route === '/api/favorites') {
+        const session = viewer();
+        if (!session) return send(res, 401, { message: '请登录后查看收藏。' });
+        const page = Number(new URL(req.url, origin).searchParams.get('page') || 1);
+        if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return send(res, 400, { message: '页码无效。' });
+        return send(res, 200, games.works(page, session.user_id, { favoriteUserId: session.user_id }));
+      }
       if (req.method === 'GET' && route === '/api/works') {
         const page = Number(new URL(req.url, origin).searchParams.get('page') || 1);
         if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return send(res, 400, { message: '页码无效。' });
-        return send(res, 200, games.works(page));
+        return send(res, 200, games.works(page, viewer()?.user_id));
       }
       const workMatch = route.match(/^\/api\/works\/([0-9a-f-]{36})$/);
       if (req.method === 'GET' && workMatch) {
@@ -119,8 +138,21 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         if (!Number.isSafeInteger(before) || before < 1) return send(res, 400, { message: '分页参数无效。' });
         return send(res, 200, activities.list(before));
       }
-      if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout', '/api/chat', '/api/activities', '/api/profile'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
+      if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout', '/api/chat', '/api/activities', '/api/profile', '/api/favorites'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
       if (req.headers['x-app-request'] !== '1' || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { message: '请求来源无效，请从本站操作。' });
+      if (route === '/api/favorites') {
+        const session = viewer();
+        if (!session) return send(res, 401, { message: '请登录后收藏作品。' });
+        if (!req.headers['content-type']?.startsWith('application/json')) return send(res, 415, { message: '请求格式无效。' });
+        const chunks = []; let size = 0;
+        for await (const chunk of req) { size += chunk.length; if (size > 2048) return send(res, 413, { message: '请求过大。' }); chunks.push(chunk); }
+        let body;
+        try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(res, 400, { message: '请求格式无效。' }); }
+        if (typeof body?.gameId !== 'string' || !/^[0-9a-f-]{36}$/.test(body.gameId) || typeof body.favorite !== 'boolean') return send(res, 400, { message: '收藏参数无效。' });
+        if (!games.published(body.gameId)) return send(res, 404, { message: '作品不存在。' });
+        if (!viewer()) return send(res, 401, { message: '登录已失效，请重新登录。' });
+        return send(res, 200, games.favorite(session.user_id, body.gameId, body.favorite));
+      }
       if (route === '/api/profile') {
         const sessionHash = hashToken(tokenFrom(req));
         const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now());
@@ -167,6 +199,7 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
       }
       if (route === '/api/logout') {
         ai.clear(hashToken(tokenFrom(req)));
+        doubao.clear(hashToken(tokenFrom(req)));
         removeSession(req);
         return send(res, 200, { user: null }, { 'Set-Cookie': cookie('', 0) });
       }
@@ -174,7 +207,6 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         const sessionHash = hashToken(tokenFrom(req));
         const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now());
         if (!session) return send(res, 401, { message: '请先登录后再与 AI 对话。' });
-        if (!ai.configured) return send(res, 503, { message: 'AI 服务尚未配置，请联系管理员。' });
         if (!req.headers['content-type']?.startsWith('application/json')) return send(res, 415, { message: '请求格式无效。' });
         const chunks = [];
         let size = 0;
@@ -189,6 +221,10 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         const disconnect = () => { if (!res.writableEnded) controller.abort(); };
         res.on('close', disconnect);
         try {
+          const provider = body?.provider === undefined ? 'deepseek' : body.provider;
+          if (typeof provider !== 'string' || !Object.hasOwn(aiProviders, provider)) return send(res, 400, { message: '请选择 DeepSeek 或豆包。' });
+          const selectedAI = aiProviders[provider];
+          if (!selectedAI.configured) return send(res, 503, { message: `${provider === 'doubao' ? '豆包' : 'DeepSeek'} 服务尚未配置，请联系管理员。` });
           let baseGame;
           if (body?.baseGameId !== undefined) {
             if (typeof body.baseGameId !== 'string' || !/^[0-9a-f-]{36}$/.test(body.baseGameId)) return send(res, 400, { message: '作品编号无效。' });
@@ -196,7 +232,7 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
             if (!original) return send(res, 404, { message: '原作品不存在。' });
             baseGame = { title: original.title, html: games.html(original.id).toString('utf8') };
           }
-          const result = await ai.reply(sessionHash, body, controller.signal, baseGame);
+          const result = await selectedAI.reply(sessionHash, body, controller.signal, baseGame);
           // 退出登录或会话过期后，不返回此账号的对话内容。
           if (!db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now())) return send(res, 401, { message: '登录已失效，请重新登录。' });
           const game = result.html ? games.save(session.user_id, result.title, result.html) : null;

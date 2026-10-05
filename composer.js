@@ -6,6 +6,13 @@ const imageUrls = new Map();
 const promptInput = document.getElementById('game-prompt');
 const sendMessage = document.getElementById('send-message');
 const composerHint = document.getElementById('composer-hint');
+const aiProvider = document.getElementById('ai-provider');
+const providerNames = { deepseek: 'DeepSeek', doubao: '豆包' };
+let providerStatus = {};
+try {
+  const savedProvider = localStorage.getItem('ai-provider');
+  if (Object.hasOwn(providerNames, savedProvider)) aiProvider.value = savedProvider;
+} catch {}
 const chatHistory = document.getElementById('chat-history');
 let baseGameId = new URLSearchParams(window.location.search).get('remix') || undefined;
 let baseLoading = Boolean(baseGameId);
@@ -44,7 +51,7 @@ if (baseGameId) {
   const remixTimer = setTimeout(() => remixRequest.abort(), 15000);
   fetch('/api/works/' + encodeURIComponent(baseGameId), { signal: remixRequest.signal })
     .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.message); return data.game; })
-    .then(game => { if (remixRequest.signal.aborted) return; remixText.textContent = `基于「${game.title}」继续修改 · 原作者：${game.author}。新版本保存到你的账号。`; promptInput.placeholder = '输入你想修改的内容，例如：增加关卡、改变玩法或画面…'; })
+    .then(game => { if (remixRequest.signal.aborted) return; remixText.textContent = `基于「${game.title}」复制作品并修改 · 原作者：${game.author}。副本保存到你的账号，原作代码保持不变。`; promptInput.placeholder = '输入你想修改的内容，例如：增加关卡、改变玩法或画面…'; })
     .catch(() => { if (remixRequest.signal.aborted) return; baseInvalid = true; remixText.textContent = '原作品无法读取，请从作品页面重新选择。'; })
     .finally(() => { clearTimeout(remixTimer); baseLoading = false; refreshComposer(); });
 }
@@ -56,12 +63,19 @@ let accountVersion = 0;
 let activeRequest;
 let gameWindow;
 function refreshComposer() {
+  configured = providerStatus[aiProvider.value]?.configured === true;
   sendMessage.disabled = baseLoading || baseInvalid || sending || selecting || !configured || (!promptInput.value.trim() && !imageUrls.size);
   addImage.disabled = sending || selecting;
+  aiProvider.disabled = sending;
   promptInput.readOnly = sending;
   for (const button of imagePreviews.querySelectorAll('button')) button.disabled = sending;
-  composerHint.textContent = sending ? '正在制作游戏…' : !configured ? 'AI 暂不可用' : !loggedIn ? '登录后开始创作' : 'Ctrl + Enter 生成';
+  composerHint.textContent = sending ? '正在制作游戏…' : !configured ? `${providerNames[aiProvider.value]} 暂不可用` : !loggedIn ? '登录后开始创作' : 'Ctrl + Enter 生成';
 }
+aiProvider.addEventListener('change', () => {
+  try { localStorage.setItem('ai-provider', aiProvider.value); } catch {}
+  composerStatus.hidden = true;
+  refreshComposer();
+});
 function showComposerStatus(message) {
   composerStatus.textContent = message;
   composerStatus.hidden = false;
@@ -71,7 +85,7 @@ function appendChat(role, text, images = [], game = null) {
   item.className = `chat-message ${role}`;
   const label = document.createElement('div');
   label.className = 'chat-message-label';
-  label.textContent = role === 'user' ? '你' : '一句一游戏 AI';
+  label.textContent = role === 'user' ? '你' : `一句一游戏 · ${providerNames[aiProvider.value]}`;
   const body = document.createElement('p');
   body.className = 'chat-message-body';
   body.textContent = text;
@@ -163,7 +177,7 @@ sendMessage.addEventListener('click', async () => {
     const response = await fetch('/api/chat', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-App-Request': '1' },
-      body: JSON.stringify({ text, images, baseGameId }),
+      body: JSON.stringify({ text, images, baseGameId, provider: aiProvider.value }),
       signal: requestController.signal
     });
     const data = await response.json();
@@ -215,7 +229,11 @@ sendMessage.addEventListener('click', async () => {
 fetch('/api/ai/status').then(response => {
   if (!response.ok) throw new Error();
   return response.json();
-}).then(data => { configured = data.configured === true; refreshComposer(); }).catch(() => {
+}).then(data => {
+  providerStatus = data.providers || { deepseek: { configured: data.configured === true }, doubao: { configured: false } };
+  for (const option of aiProvider.options) option.textContent = providerNames[option.value] + (providerStatus[option.value]?.configured ? '' : '（未配置）');
+  refreshComposer();
+}).catch(() => {
   showComposerStatus('暂时无法连接 AI 服务，请刷新重试。');
   refreshComposer();
 });
