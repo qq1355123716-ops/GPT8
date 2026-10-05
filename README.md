@@ -1,6 +1,6 @@
 # 一句一游戏
 
-固定标题栏、用户名注册/登录功能。无需邮箱。登录后显示默认头像，悬停头像显示账户菜单，也支持点击和键盘操作。个人资料、库、收藏历史暂为占位入口；退出账号可清除登录会话并恢复登录按钮。
+固定标题栏、用户名注册/登录功能。无需邮箱。登录后显示默认头像，悬停头像显示账户菜单，也支持点击和键盘操作。点击“库”在当前标签页进入 `#library`，显示该账号生成的游戏及历史版本，支持打开游玩和下载 HTML。每页 24 个，按创建时间倒序；以前生成的游戏也自动显示。个人资料、收藏历史暂为占位入口；退出账号可清除登录会话并恢复登录按钮。
 
 首页对话框已对接 DeepSeek Responses API。登录后输入游戏想法并发送，AI 返回完整单文件 HTML，服务器自动新建文件并打开游戏预览。支持 Ctrl/Cmd + Enter 生成，后续描述修改需求会生成新版本文件，旧版本保留。纯聊天不创建游戏文件。图片支持 PNG、JPG、WebP、GIF，最多 6 张，每张不超过 10 MB。仅点击发送时才上传文字和图片给 DeepSeek。失败时保留草稿，可再次发送。
 
@@ -41,6 +41,8 @@ GitHub 仓库用于保存源代码。GitHub Pages 仅支持静态页面，不能
 环境变量：`PORT`（默认 3000）、`HOST`（默认 127.0.0.1）、`APP_ORIGIN`（公开访问地址，如 https://example.com，不带末尾斜杠）、`DATA_DIR`（数据库目录）。HTTPS 地址自动启用 Secure Cookie。反向代理应保留 Cookie，并限制请求频率；当前内置限流按直连客户端 IP 计算，不信任代理传入的 IP 请求头。
 
 API：`POST /api/register`、`POST /api/login` 接收 JSON `{ "username": "用户名", "password": "密码" }`；`GET /api/me` 查询当前用户；`POST /api/logout` 退出。POST 需发送 `X-App-Request: 1`，仅支持同源调用。
+
+游戏库 API：`GET /api/games?page=1`，需要登录，仅返回当前用户的游戏元数据和可访问链接，不返回文件系统路径或其他账号的数据。
 
 AI API：`GET /api/ai/status` 返回是否配置服务；`POST /api/chat` 接收 `{ "text": "内容", "images": ["data:image/png;base64,..."] }`，需要登录，返回 `{ "reply": "AI 回复", "game": { "id": "唯一ID", "title": "标题", "filename": "文件名", "url": "预览地址", "downloadUrl": "下载地址" } }`；纯聊天时 game 为 null。图片通过服务端转发，不接受任意远程图片网址。
 

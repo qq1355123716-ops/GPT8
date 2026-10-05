@@ -23,7 +23,8 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
     '/index.html': [readFileSync(path.join(__dirname, 'index.html')), 'text/html; charset=utf-8'],
     '/auth.js': [readFileSync(path.join(__dirname, 'auth.js')), 'text/javascript; charset=utf-8'],
     '/composer.js': [readFileSync(path.join(__dirname, 'composer.js')), 'text/javascript; charset=utf-8'],
-    '/navigation.js': [readFileSync(path.join(__dirname, 'navigation.js')), 'text/javascript; charset=utf-8']
+    '/navigation.js': [readFileSync(path.join(__dirname, 'navigation.js')), 'text/javascript; charset=utf-8'],
+    '/library.js': [readFileSync(path.join(__dirname, 'library.js')), 'text/javascript; charset=utf-8']
   };
   const attempts = new Map();
   const cookie = (token, age) => `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secure ? '; Secure' : ''}`;
@@ -65,6 +66,13 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         return send(res, 200, { user: user ? { username: user.username } : null });
       }
       if (req.method === 'GET' && route === '/api/ai/status') return send(res, 200, { configured: ai.configured });
+      if (req.method === 'GET' && route === '/api/games') {
+        const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
+        if (!session) return send(res, 401, { message: '请先登录后查看你的游戏库。' });
+        const page = Number(new URL(req.url, origin).searchParams.get('page') || 1);
+        if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return send(res, 400, { message: '页码无效。' });
+        return send(res, 200, games.list(session.user_id, page));
+      }
       if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout', '/api/chat'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
       if (req.headers['x-app-request'] !== '1' || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { message: '请求来源无效，请从本站操作。' });
       if (route === '/api/logout') {

@@ -98,6 +98,8 @@ test('generated HTML is saved as a new file, isolated in preview, downloadable a
   await withServer({ apiKey: 'test-only', fetchImpl: async (url, options) => { calls.push(JSON.parse(options.body)); return mockReply('点击开始即可游玩。', html, '<测试游戏>'); } }, async (api, directory) => {
     const owner = await api('/api/register', { username: 'owner', password: 'password123' });
     const other = await api('/api/register', { username: 'other', password: 'password123' });
+    assert.equal((await api('/api/games')).status, 401);
+    assert.equal((await api('/api/games', undefined, owner.cookie)).data.total, 0);
     const result = await api('/api/chat', { text: '制作游戏', images: [] }, owner.cookie);
     assert.equal(result.status, 200);
     assert.match(result.data.game.filename, /^[0-9a-f-]{36}\.html$/);
@@ -117,6 +119,14 @@ test('generated HTML is saved as a new file, isolated in preview, downloadable a
     assert.notEqual(updated.data.game.id, result.data.game.id);
     assert.equal(readdirSync(directory).length, 2);
     assert.equal(JSON.parse(calls[1].input[1].content).html, html);
+    const library = await api('/api/games', undefined, owner.cookie);
+    assert.equal(library.data.total, 2);
+    assert.equal(library.data.games.length, 2);
+    assert.equal(library.data.games[0].id, updated.data.game.id);
+    assert.equal(library.data.games[0].url, updated.data.game.url);
+    assert.equal((await api('/api/games', undefined, other.cookie)).data.total, 0);
+    assert.equal((await api('/api/games?page=0', undefined, owner.cookie)).status, 400);
+    assert.equal((await api('/api/games?page=2', undefined, owner.cookie)).data.games.length, 0);
   });
 });
 

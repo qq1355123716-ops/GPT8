@@ -138,6 +138,7 @@ sendMessage.addEventListener('click', async () => {
     if (data.game && (!/^\/play\/[0-9a-f-]{36}$/.test(data.game.url) || !/^\/games\/[0-9a-f-]{36}\.html\?download=1$/.test(data.game.downloadUrl))) throw new Error('游戏地址异常，请重试。');
     appendChat('assistant', data.reply, [], data.game);
     if (data.game) {
+      window.dispatchEvent(new CustomEvent('gamecreated'));
       if (gameWindow && !gameWindow.closed) gameWindow.location.replace(data.game.url);
       else window.location.assign(data.game.url);
       gameWindow = undefined;

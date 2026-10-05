@@ -17,10 +17,16 @@ function createGames(db, directory) {
     get(id, userId) {
       return db.prepare('SELECT id, title FROM games WHERE id = ? AND user_id = ?').get(id, userId);
     },
+    list(userId, page = 1) {
+      const pageSize = 24;
+      const total = db.prepare('SELECT COUNT(*) AS total FROM games WHERE user_id = ?').get(userId).total;
+      const rows = db.prepare('SELECT id, title, created FROM games WHERE user_id = ? ORDER BY created DESC, id DESC LIMIT ? OFFSET ?').all(userId, pageSize, (page - 1) * pageSize);
+      return { games: rows.map(game => ({ ...game, filename: `${game.id}.html`, url: `/play/${game.id}`, downloadUrl: `/games/${game.id}.html?download=1` })), total, page, pageSize };
+    },
     html(id) { return readFileSync(path.join(directory, `${id}.html`)); },
     preview(game) {
       const title = escapeHTML(game.title);
-      return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · 一句一游戏</title><style>*{box-sizing:border-box}body{margin:0;background:#1b1e30;color:#f2f4f6;font-family:system-ui,"Microsoft YaHei",sans-serif}header{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid #ffffff20}h1{font-size:16px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav{display:flex;gap:16px;white-space:nowrap}a{color:#c8f27b;font-size:13px;text-decoration:none}iframe{display:block;border:0;width:100%;height:calc(100dvh - 56px);background:#101426}</style></head><body><header><h1>${title}</h1><nav><a href="/games/${game.id}.html?download=1">下载 HTML</a><a href="/#home">返回首页</a></nav></header><iframe src="/games/${game.id}.html" sandbox="allow-scripts" title="${title}"></iframe></body></html>`;
+      return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · 一句一游戏</title><style>*{box-sizing:border-box}body{margin:0;background:#1b1e30;color:#f2f4f6;font-family:system-ui,"Microsoft YaHei",sans-serif}header{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid #ffffff20}h1{font-size:16px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}nav{display:flex;gap:16px;white-space:nowrap}a{color:#c8f27b;font-size:13px;text-decoration:none}iframe{display:block;border:0;width:100%;height:calc(100dvh - 56px);background:#101426}</style></head><body><header><h1>${title}</h1><nav><a href="/#library">返回库</a><a href="/games/${game.id}.html?download=1">下载 HTML</a><a href="/#home">返回首页</a></nav></header><iframe src="/games/${game.id}.html" sandbox="allow-scripts" title="${title}"></iframe></body></html>`;
     }
   };
 }

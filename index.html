@@ -51,6 +51,19 @@
     .activity-empty-icon { display: grid; place-items: center; width: 72px; height: 72px; border: 1px solid #a8b6f029; border-radius: 22px; background: var(--panel); color: #9ba8cf; }
     .activity-empty-icon svg { width: 32px; height: 32px; }
     .activity-empty p { margin: 0; color: var(--muted); font-size: 15px; }
+    .library-page { min-height: 100vh; padding-top: 130px; }
+    .library-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 22px; border-bottom: 1px solid #ffffff12; }
+    .library-heading h2 { font-size: 26px; margin: 0 0 8px; }
+    .library-heading p { color: var(--muted); font-size: 13px; margin: 0; }
+    .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 20px; padding-top: 26px; }
+    .library-card { padding: 22px; background: var(--panel); border: 1px solid #a8b6f029; border-radius: 16px; min-width: 0; }
+    .library-card-icon { display: grid; place-items: center; width: 48px; height: 48px; background: #9a8cf01a; border: 1px solid #b4a8f22a; border-radius: 14px; color: #c8bcff; font-size: 24px; margin-bottom: 22px; }
+    .library-card h3 { font-size: 17px; margin: 0 0 10px; overflow-wrap: anywhere; }
+    .library-card time { display: block; color: var(--muted); font-size: 11px; }
+    .library-empty { text-align: center; padding: 100px 12px; color: var(--muted); font-size: 14px; line-height: 1.9; }
+    .library-empty a { color: var(--accent); text-decoration: none; }
+    .library-pagination { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 30px; font-size: 13px; color: var(--muted); }
+    .account-menu-item { text-decoration: none; }
     .hero { text-align: center; position: relative; padding: 36px 0 54px; }
     .eyebrow { display: inline-flex; align-items: center; gap: 9px; font-size: 11px; letter-spacing: 2px; color: var(--accent); }
     .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px #c8f25560; }
@@ -123,7 +136,7 @@
     .notice { font-size: 11px; color: var(--muted); line-height: 1.8; margin: 16px 0 0; }
     #status { color: var(--accent); font-size: 12px; line-height: 1.7; }
     @media (max-width: 700px) { .header { height: 68px; }.brand { font-size: 17px; gap: 9px; }.auth-button { padding: 9px 14px; font-size: 12px; }main { padding: 112px 0 30px; }.hero { padding-top: 26px; }h1 { letter-spacing: -1px; }.subtitle { font-size: 13px; }.composer { padding: 16px; }.cards { grid-template-columns: 1fr; }.art { height: 190px; }.section-heading span { font-size: 11px; }footer { flex-direction: column; } }
-    @media (max-width: 700px) { .header { height: 104px; }.header-inner { grid-template-columns: 1fr auto; grid-template-rows: 60px 44px; gap: 0; }.brand { grid-column: 1; grid-row: 1; height: 60px; }.header-inner > .account { grid-column: 2; grid-row: 1; height: 60px; }.header-nav { grid-column: 1 / -1; grid-row: 2; justify-self: center; height: 44px; gap: 28px; }main, .activity-page { padding-top: 148px; } }
+    @media (max-width: 700px) { .header { height: 104px; }.header-inner { grid-template-columns: 1fr auto; grid-template-rows: 60px 44px; gap: 0; }.brand { grid-column: 1; grid-row: 1; height: 60px; }.header-inner > .account { grid-column: 2; grid-row: 1; height: 60px; }.header-nav { grid-column: 1 / -1; grid-row: 2; justify-self: center; height: 44px; gap: 28px; }main, .activity-page, .library-page { padding-top: 148px; } }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
@@ -142,7 +155,7 @@
           <div class="account-menu" id="account-menu" aria-label="账户菜单" hidden>
             <div class="account-menu-panel">
               <button class="account-menu-item" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>个人资料</button>
-              <button class="account-menu-item" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>库</button>
+              <a class="account-menu-item" id="open-library" href="#library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>库</a>
               <button class="account-menu-item" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>收藏历史</button>
               <hr class="account-menu-divider">
               <button class="account-menu-item logout" id="logout" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10 4H5v16h5M9 12h12m-4-4 4 4-4 4"/></svg><span id="logout-label">退出账号</span></button>
@@ -185,6 +198,12 @@
     <h2 class="activity-heading" id="activity-title">动态</h2>
     <div class="activity-empty"><div class="activity-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8l-5 3V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h6"/></svg></div><p>暂无动态</p></div>
   </main>
+  <main class="library-page" id="library-page" aria-labelledby="library-title" tabindex="-1" hidden>
+    <div class="library-heading"><div><h2 id="library-title">我的游戏库</h2><p id="library-count">你创造的每一个游戏，都在这里。</p></div><button class="auth-button" id="library-refresh" type="button">刷新</button></div>
+    <div class="library-empty" id="library-empty" role="status"><p id="library-message">正在读取游戏库…</p><a id="library-create" href="#home" hidden>去首页创造游戏 ↗</a><button class="auth-button" id="library-login" type="button" hidden>登录 / 注册</button></div>
+    <div class="library-grid" id="library-grid" aria-label="我的游戏列表" hidden></div>
+    <div class="library-pagination" id="library-pagination" hidden><button class="auth-button" id="library-prev" type="button">上一页</button><span id="library-page-number"></span><button class="auth-button" id="library-next" type="button">下一页</button></div>
+  </main>
   <dialog id="auth-dialog" aria-labelledby="auth-title">
     <div class="dialog-top"><h2 id="auth-title">欢迎来到一句一游戏</h2><button class="close" id="close-auth" type="button" aria-label="关闭">×</button></div>
     <div class="tabs" role="group" aria-label="选择登录或注册"><button id="login-tab" type="button" aria-pressed="true">登录</button><button id="register-tab" type="button" aria-pressed="false">注册</button></div>
@@ -199,5 +218,6 @@
   <script src="/auth.js" defer></script>
   <script src="/composer.js" defer></script>
   <script src="/navigation.js" defer></script>
+  <script src="/library.js" defer></script>
 </body>
 </html>
