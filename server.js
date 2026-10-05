@@ -7,8 +7,10 @@ const path = require('node:path');
 const derive = promisify(scrypt);
 const hashToken = token => createHash('sha256').update(token).digest('hex');
 const lifetime = 7 * 24 * 60 * 60;
+const { createAI } = require('./ai');
 
-function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlite'), origin = 'http://localhost:3000', secure = false } = {}) {
+function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlite'), origin = 'http://localhost:3000', secure = false, aiOptions = {} } = {}) {
+  const ai = createAI(aiOptions);
   if (databasePath !== ':memory:') mkdirSync(path.dirname(databasePath), { recursive: true });
   const db = new DatabaseSync(databasePath);
   db.exec(`PRAGMA journal_mode = WAL;
@@ -43,11 +45,40 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         const user = db.prepare('SELECT users.username FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires > ?').get(hashToken(tokenFrom(req)), Date.now());
         return send(res, 200, { user: user ? { username: user.username } : null });
       }
-      if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
+      if (req.method === 'GET' && route === '/api/ai/status') return send(res, 200, { configured: ai.configured });
+      if (req.method !== 'POST' || !['/api/login', '/api/register', '/api/logout', '/api/chat'].includes(route)) return send(res, 404, { message: '页面或接口不存在。' });
       if (req.headers['x-app-request'] !== '1' || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { message: '请求来源无效，请从本站操作。' });
       if (route === '/api/logout') {
+        ai.clear(hashToken(tokenFrom(req)));
         removeSession(req);
         return send(res, 200, { user: null }, { 'Set-Cookie': cookie('', 0) });
+      }
+      if (route === '/api/chat') {
+        const sessionHash = hashToken(tokenFrom(req));
+        const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now());
+        if (!session) return send(res, 401, { message: '请先登录后再与 AI 对话。' });
+        if (!ai.configured) return send(res, 503, { message: 'AI 服务尚未配置，请联系管理员。' });
+        if (!req.headers['content-type']?.startsWith('application/json')) return send(res, 415, { message: '请求格式无效。' });
+        const chunks = [];
+        let size = 0;
+        for await (const chunk of req) {
+          size += chunk.length;
+          if (size > 85 * 1024 * 1024) return send(res, 413, { message: '图片总大小过大，请减少图片后重试。' });
+          chunks.push(chunk);
+        }
+        let body;
+        try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(res, 400, { message: '请求格式无效。' }); }
+        const controller = new AbortController();
+        const disconnect = () => { if (!res.writableEnded) controller.abort(); };
+        res.on('close', disconnect);
+        try {
+          const reply = await ai.reply(sessionHash, body, controller.signal);
+          // 退出登录或会话过期后，不返回此账号的对话内容。
+          if (!db.prepare('SELECT user_id FROM sessions WHERE token_hash = ? AND expires > ?').get(sessionHash, Date.now())) return send(res, 401, { message: '登录已失效，请重新登录。' });
+          return send(res, 200, { reply });
+        } catch (error) { if (!res.destroyed) return send(res, error.status || 500, { message: error.message }); }
+        finally { res.off('close', disconnect); }
+        return;
       }
       const now = Date.now();
       for (const [key, value] of attempts) if (value.until <= now) attempts.delete(key);
@@ -101,6 +132,7 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
   return server;
 }
 if (require.main === module) {
+  try { process.loadEnvFile(path.join(__dirname, '.env')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   const port = Number(process.env.PORT || 3000);
   const origin = process.env.APP_ORIGIN || `http://localhost:${port}`;
   const secure = new URL(origin).protocol === 'https:';

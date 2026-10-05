@@ -22,6 +22,7 @@ function setUser(user) {
   accountAvatar.title = user ? user.username : '';
   openAuth.hidden = Boolean(user);
   setMenuOpen(false);
+  window.dispatchEvent(new CustomEvent('authchange', { detail: { user } }));
 }
 function setMenuOpen(open) {
   accountMenu.hidden = !open;

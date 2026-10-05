@@ -74,6 +74,14 @@
     .image-preview img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 1px solid #ffffff29; }
     .remove-image { position: absolute; right: -5px; top: -5px; width: 22px; height: 22px; padding: 0; border: 1px solid #ffffff35; border-radius: 50%; background: #353b55; color: white; line-height: 1; }
     .composer-status { color: var(--muted); font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
+    .chat-history { max-height: 360px; overflow-y: auto; padding: 0 2px 18px; margin-bottom: 16px; border-bottom: 1px solid #ffffff12; }
+    .chat-message { margin: 0 0 18px; }
+    .chat-message:last-child { margin-bottom: 0; }
+    .chat-message-label { color: var(--accent); font-size: 11px; margin-bottom: 6px; }
+    .chat-message.user .chat-message-label { color: var(--muted); }
+    .chat-message-body { margin: 0; color: var(--text); font-size: 13px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .chat-message-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chat-message-images img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
     .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 0 20px; gap: 12px; }
     .section-heading h2 { font-size: 17px; margin: 0; font-weight: 600; }
     .section-heading span { color: var(--muted); font-size: 12px; }
@@ -149,12 +157,13 @@
       <h1 id="hero-title">一句灵感，<br>一个<span>游戏世界。</span></h1>
       <p class="subtitle">把脑海里的奇思妙想，变成触手可及的快乐。<br>从一句话开始，让想象力自由生长。</p>
       <div class="composer" role="group" aria-label="游戏创意对话框">
+        <div class="chat-history" id="chat-history" role="log" aria-label="AI 对话记录" aria-live="polite" hidden></div>
         <textarea id="game-prompt" aria-label="描述你的游戏想法" placeholder="描述你想创造的游戏，也可以添加图片…" maxlength="10000"></textarea>
         <div class="image-previews" id="image-previews" aria-label="已添加的图片" hidden></div>
         <div class="composer-toolbar">
           <button class="add-image" id="add-image" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>添加图片</button>
           <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
-          <div class="composer-actions"><span class="composer-hint">发送暂未开放</span><button class="send-message" type="button" aria-label="发送，暂未开放" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button></div>
+          <div class="composer-actions"><span class="composer-hint" id="composer-hint">正在连接 AI…</span><button class="send-message" id="send-message" type="button" aria-label="发送消息" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button></div>
         </div>
         <p class="composer-status" id="composer-status" role="status" hidden></p>
       </div>

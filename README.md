@@ -2,7 +2,15 @@
 
 固定标题栏、用户名注册/登录功能。无需邮箱。登录后显示默认头像，悬停头像显示账户菜单，也支持点击和键盘操作。个人资料、库、收藏历史暂为占位入口；退出账号可清除登录会话并恢复登录按钮。
 
-首页对话框支持输入游戏想法，左下角可添加图片并预览、移除。支持 PNG、JPG、WebP、GIF，最多 6 张，每张不超过 10 MB。当前未接入 AI，发送按钮暂未开放，文字和图片仅保留在当前页面，不上传、不持久保存。
+首页对话框已对接 OpenAI Responses API。登录后可发送文字和参考图片，显示 AI 回复，支持 Ctrl/Cmd + Enter 发送。图片支持 PNG、JPG、WebP、GIF，最多 6 张，每张不超过 10 MB；GIF 图片需为非动画图片。仅点击发送时才上传文字和图片给 OpenAI。失败时保留草稿，可再次发送。
+
+## 配置 AI
+
+本地 `.env` 已建立（不提交 Git）；部署时复制 `.env.example` 为 `.env`。填写 `OPENAI_API_KEY`，模型默认 `OPENAI_MODEL=gpt-5.4-mini`，可改为你的账户可用且支持图片的 Responses 模型。修改后重启 `npm start`。未填写密钥时显示“AI 暂不可用”，不会生成模拟回复。密钥只由后端读取，不返回给浏览器。
+
+实现依据 [OpenAI 图片与视觉文档](https://developers.openai.com/api/docs/guides/images-vision) 和 [GPT-5.4 Mini 文档](https://developers.openai.com/api/docs/models/gpt-5.4-mini)。真实调用需要有效 API 密钥、可用额度和能访问 OpenAI 的网络。
+
+对话上下文按登录会话隔离，服务端内存保留最近 6 轮文字，上下文闲置一小时后清理；每个会话最多每小时 30 次，且不允许同时发送多个请求。图片不保留在服务端历史。退出账号清除该会话上下文并取消页面中的请求。页面刷新清空显示记录，服务重启清空上下文。请求使用 `store: false`，不在本地数据库存储聊天内容。当前只提供 AI 对话，不会自动运行或发布 AI 返回的代码。
 
 标题栏的首页、动态、作品居中。动态支持切换至 `#activity`，显示“暂无动态”，导航右侧出现发布加号（发布功能尚未开放）。首页与动态切换保留输入草稿和图片；作品暂为占位入口。
 
@@ -29,5 +37,7 @@ GitHub 仓库用于保存源代码。GitHub Pages 仅支持静态页面，不能
 环境变量：`PORT`（默认 3000）、`HOST`（默认 127.0.0.1）、`APP_ORIGIN`（公开访问地址，如 https://example.com，不带末尾斜杠）、`DATA_DIR`（数据库目录）。HTTPS 地址自动启用 Secure Cookie。反向代理应保留 Cookie，并限制请求频率；当前内置限流按直连客户端 IP 计算，不信任代理传入的 IP 请求头。
 
 API：`POST /api/register`、`POST /api/login` 接收 JSON `{ "username": "用户名", "password": "密码" }`；`GET /api/me` 查询当前用户；`POST /api/logout` 退出。POST 需发送 `X-App-Request: 1`，仅支持同源调用。
+
+AI API：`GET /api/ai/status` 返回是否配置服务；`POST /api/chat` 接收 `{ "text": "内容", "images": ["data:image/png;base64,..."] }`，需要登录，返回 `{ "reply": "AI 回复" }`。图片通过服务端转发，不接受任意远程图片网址。
 
 实现使用 Node.js 内置 [SQLite](https://nodejs.org/api/sqlite.html) 和 [crypto](https://nodejs.org/api/crypto.html)，无需安装第三方运行依赖。
