@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101214">
+  <title>一句一游戏</title>
+  <style>
+    :root { color-scheme: dark; --bg: #101214; --panel: #191c20; --text: #f2f4f6; --muted: #969da7; --accent: #c8f27b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+    .header { position: fixed; inset: 0 0 auto; z-index: 10; height: 80px; background: rgba(16,18,20,.92); border-bottom: 1px solid #ffffff12; backdrop-filter: blur(18px); }
+    .header-inner { max-width: 1280px; height: 100%; margin: auto; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; font-size: 20px; font-weight: 750; letter-spacing: 1px; }
+    .brand-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #182111; display: grid; place-items: center; font-size: 24px; font-weight: 500; }
+    .auth-button { border: 1px solid #ffffff29; border-radius: 100px; padding: 11px 22px; background: #ffffff06; color: var(--text); font-size: 13px; transition: background .2s, border-color .2s; }
+    .auth-button:hover { background: #ffffff10; border-color: var(--accent); }
+    main { max-width: 1280px; margin: auto; padding: 158px 40px 48px; }
+    .hero { text-align: center; position: relative; padding: 36px 0 54px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 9px; font-size: 11px; letter-spacing: 2px; color: var(--accent); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px #c8f25560; }
+    h1 { margin: 26px 0 20px; font-size: clamp(38px, 5.4vw, 68px); line-height: 1.25; letter-spacing: -2px; font-weight: 750; }
+    h1 span { color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: 15px; line-height: 1.9; margin: 0; }
+    .idea { max-width: 660px; margin: 38px auto 0; padding: 22px 24px; background: var(--panel); border: 1px solid #ffffff16; border-radius: 16px; text-align: left; display: flex; align-items: center; gap: 18px; }
+    .idea-symbol { flex-shrink: 0; color: var(--accent); font-size: 26px; }
+    .idea p { margin: 0; font-size: 14px; color: #c1c6cc; line-height: 1.8; }
+    .idea small { display: block; margin-top: 5px; font-size: 11px; color: #777f8a; }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 0 20px; gap: 12px; }
+    .section-heading h2 { font-size: 17px; margin: 0; font-weight: 600; }
+    .section-heading span { color: var(--muted); font-size: 12px; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .card { border: 1px solid #ffffff12; border-radius: 18px; overflow: hidden; background: var(--panel); }
+    .art { height: 180px; position: relative; overflow: hidden; display: grid; place-items: center; }
+    .art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent, #00000025); }
+    .space { background: radial-gradient(ellipse at 50% 90%, #5d488d, #242334 70%); }
+    .space .planet { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #ead2ff, #a286d4 50%, #58427e); box-shadow: 0 0 45px #bfa0e62b; transform: rotate(-25deg); }
+    .space .planet::after { content: ""; position: absolute; width: 128px; height: 30px; border: 7px solid #c2a3e0; border-radius: 50%; left: -28px; top: 18px; }
+    .stars { position: absolute; inset: 0; background-image: radial-gradient(circle, #ffffff80 1px, transparent 1px); background-size: 47px 41px; }
+    .forest { background: linear-gradient(145deg, #1d3d35, #334d3a); }
+    .forest .hill { position: absolute; width: 260px; height: 200px; background: #65835b; border-radius: 50%; bottom: -150px; left: -15px; }
+    .forest .hill.second { background: #3e624b; left: auto; right: -45px; bottom: -125px; }
+    .tree { color: #a8bf87; font-size: 80px; z-index: 1; line-height: 1; transform: translateY(5px); }
+    .city { background: linear-gradient(145deg, #44382e, #77543b); }
+    .blocks { display: flex; align-items: flex-end; gap: 9px; height: 110px; transform: skewY(-8deg); }
+    .blocks i { display: block; width: 35px; height: 60px; background: repeating-linear-gradient(0deg, transparent 0 13px, #ffd79450 13px 16px), #b48b63; border-right: 8px solid #806347; }
+    .blocks i:nth-child(2) { height: 100px; }.blocks i:nth-child(3) { height: 80px; }.blocks i:nth-child(4) { height: 48px; }
+    .card-content { padding: 19px 20px 21px; }
+    .tag { font-size: 10px; color: var(--accent); letter-spacing: 1px; }
+    .card h3 { margin: 10px 0; font-size: 17px; font-weight: 600; }
+    .card p { color: var(--muted); font-size: 12px; margin: 0; line-height: 1.8; }
+    footer { margin-top: 48px; border-top: 1px solid #ffffff12; padding-top: 22px; display: flex; justify-content: space-between; gap: 16px; font-size: 11px; color: #707780; }
+    dialog { width: min(420px, calc(100% - 32px)); border: 1px solid #ffffff22; border-radius: 20px; padding: 30px; background: #191c20; color: var(--text); }
+    dialog::backdrop { background: #0009; backdrop-filter: blur(5px); }
+    .dialog-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .dialog-top h2 { margin: 0; font-size: 21px; }
+    .close { border: 0; color: var(--muted); background: transparent; font-size: 26px; padding: 0 5px; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #101214; padding: 5px; border-radius: 10px; margin-bottom: 22px; }
+    .tabs button { padding: 9px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); }
+    .tabs button[aria-pressed="true"] { background: #30352d; color: var(--accent); }
+    label { display: block; font-size: 12px; color: #b6bdc5; margin-bottom: 8px; }
+    input { width: 100%; padding: 12px; border: 1px solid #ffffff22; border-radius: 9px; background: #101214; color: white; margin-bottom: 18px; }
+    .submit { width: 100%; background: var(--accent); color: #1b2612; font-weight: 650; border: 0; border-radius: 9px; padding: 12px; }
+    .notice { font-size: 11px; color: var(--muted); line-height: 1.8; margin: 16px 0 0; }
+    #status { color: var(--accent); font-size: 12px; line-height: 1.7; }
+    @media (max-width: 700px) { .header { height: 68px; }.header-inner { padding: 0 20px; }.brand { font-size: 17px; gap: 9px; }.auth-button { padding: 9px 14px; font-size: 12px; }main { padding: 112px 20px 30px; }.hero { padding-top: 26px; }h1 { letter-spacing: -1px; }.subtitle { font-size: 13px; }.idea { padding: 18px; }.cards { grid-template-columns: 1fr; }.art { height: 190px; }.section-heading span { font-size: 11px; }footer { flex-direction: column; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="一句一游戏首页"><span class="brand-icon" aria-hidden="true">✳</span>一句一游戏</a>
+      <button class="auth-button" id="open-auth" type="button">登录 / 注册 <span aria-hidden="true">↗</span></button>
+    </div>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="dot"></span> 每个好玩的世界，都始于一个想法</div>
+      <h1 id="hero-title">一句灵感，<br>一个<span>游戏世界。</span></h1>
+      <p class="subtitle">把脑海里的奇思妙想，变成触手可及的快乐。<br>从一句话开始，让想象力自由生长。</p>
+      <div class="idea"><span class="idea-symbol" aria-hidden="true">✧</span><div><p>“我想在一颗小小的星球上，收集掉落的星光。”</p><small>你的下一场冒险，也许就藏在这样一句话里。</small></div></div>
+    </section>
+    <section aria-labelledby="inspiration-title">
+      <div class="section-heading"><h2 id="inspiration-title">灵感，不设边界</h2><span>一些关于游戏的奇妙想象</span></div>
+      <div class="cards">
+        <article class="card"><div class="art space" aria-hidden="true"><div class="stars"></div><div class="planet"></div></div><div class="card-content"><span class="tag">探索 · 宇宙</span><h3>在星光里迷路</h3><p>驾驶小小飞船，寻找宇宙里最后一颗发光的星球。</p></div></article>
+        <article class="card"><div class="art forest" aria-hidden="true"><div class="hill"></div><div class="hill second"></div><div class="tree">♠</div></div><div class="card-content"><span class="tag">治愈 · 自然</span><h3>森林里的慢时光</h3><p>种下一片森林，让每一棵树都拥有自己的故事。</p></div></article>
+        <article class="card"><div class="art city" aria-hidden="true"><div class="blocks"><i></i><i></i><i></i><i></i></div></div><div class="card-content"><span class="tag">创造 · 城市</span><h3>一座会做梦的城</h3><p>用积木搭起理想小城，等待第一位居民到来。</p></div></article>
+      </div>
+    </section>
+    <footer><span>一句一游戏 · 让想象发生</span><span>MADE FOR YOUR IMAGINATION</span></footer>
+  </main>
+  <dialog id="auth-dialog" aria-labelledby="auth-title">
+    <div class="dialog-top"><h2 id="auth-title">欢迎来到一句一游戏</h2><button class="close" id="close-auth" type="button" aria-label="关闭">×</button></div>
+    <div class="tabs" role="group" aria-label="选择登录或注册"><button id="login-tab" type="button" aria-pressed="true">登录</button><button id="register-tab" type="button" aria-pressed="false">注册</button></div>
+    <form id="auth-form">
+      <label for="email">邮箱</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+      <label for="password">密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required>
+      <button class="submit" id="submit-auth" type="submit">登录</button>
+      <p class="notice">当前为界面演示，尚未连接账户服务。请勿输入真实密码。</p>
+      <p id="status" role="status" hidden></p>
+    </form>
+  </dialog>
+  <script>
+    const dialog = document.getElementById('auth-dialog');
+    const form = document.getElementById('auth-form');
+    const password = document.getElementById('password');
+    const status = document.getElementById('status');
+    const loginTab = document.getElementById('login-tab');
+    const registerTab = document.getElementById('register-tab');
+    document.getElementById('open-auth').addEventListener('click', () => dialog.showModal());
+    document.getElementById('close-auth').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => {
+      const rect = dialog.getBoundingClientRect();
+      if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+    });
+    dialog.addEventListener('close', () => { form.reset(); status.hidden = true; });
+    function setMode(register) {
+      loginTab.setAttribute('aria-pressed', String(!register));
+      registerTab.setAttribute('aria-pressed', String(register));
+      password.autocomplete = register ? 'new-password' : 'current-password';
+      password.minLength = register ? 8 : 1;
+      password.placeholder = register ? '请设置至少 8 位密码' : '请输入密码';
+      password.value = '';
+      document.getElementById('submit-auth').textContent = register ? '创建账户' : '登录';
+      status.hidden = true;
+    }
+    loginTab.addEventListener('click', () => setMode(false));
+    registerTab.addEventListener('click', () => setMode(true));
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      password.value = '';
+      status.textContent = '账户服务尚未接入，暂时无法完成登录或注册。';
+      status.hidden = false;
+    });
+  </script>
+</body>
+</html>
