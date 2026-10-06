@@ -119,6 +119,14 @@ function createApp({ databasePath = path.join(__dirname, 'data', 'accounts.sqlit
         if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return send(res, 400, { message: '页码无效。' });
         return send(res, 200, games.works(page, viewer()?.user_id));
       }
+      const deleteWorkMatch = route.match(/^\/api\/works\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/delete$/);
+      if (req.method === 'POST' && deleteWorkMatch) {
+        if (req.headers['x-app-request'] !== '1' || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, { message: '请求来源无效，请从本站操作。' });
+        const session = viewer();
+        if (!session) return send(res, 401, { message: '请登录后删除作品。' });
+        if (!games.remove(deleteWorkMatch[1], session.user_id)) return send(res, 404, { message: '作品不存在或无权删除。' });
+        return send(res, 200, { deleted: true });
+      }
       const workMatch = route.match(/^\/api\/works\/([0-9a-f-]{36})$/);
       if (req.method === 'GET' && workMatch) {
         const game = games.published(workMatch[1]);

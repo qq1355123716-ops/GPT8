@@ -18,6 +18,18 @@ function createGames(db, directory) {
     get(id, userId) {
       return db.prepare('SELECT id, title FROM games WHERE id = ? AND user_id = ?').get(id, userId);
     },
+    remove(id, userId) {
+      if (!this.get(id, userId)) return false;
+      db.exec('BEGIN');
+      try {
+        db.prepare('DELETE FROM favorites WHERE game_id = ?').run(id);
+        db.prepare('DELETE FROM games WHERE id = ? AND user_id = ?').run(id, userId);
+        try { unlinkSync(path.join(directory, `${id}.html`)); }
+        catch (error) { if (error.code !== 'ENOENT') throw error; }
+        db.exec('COMMIT');
+        return true;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+    },
     published(id) {
       return db.prepare('SELECT games.id, games.user_id AS authorId, title, created, COALESCE(profiles.display_name, users.username) AS author FROM games JOIN users ON users.id = games.user_id LEFT JOIN profiles ON profiles.user_id = users.id WHERE games.id = ?').get(id);
     },
@@ -31,7 +43,7 @@ function createGames(db, directory) {
         EXISTS (SELECT 1 FROM favorites WHERE game_id = games.id AND user_id = ?) AS isFavorite
         FROM games JOIN users ON users.id = games.user_id LEFT JOIN profiles ON profiles.user_id = users.id
         ${where} ORDER BY created DESC, games.id DESC LIMIT ? OFFSET ?`).all(viewerId, ...params, pageSize, (page - 1) * pageSize);
-      return { games: rows.map(game => ({ ...game, isFavorite: Boolean(game.isFavorite), url: `/play/${game.id}`, remixUrl: `/?remix=${game.id}#home` })), total, page, pageSize };
+      return { games: rows.map(game => ({ ...game, canDelete: game.authorId === viewerId, isFavorite: Boolean(game.isFavorite), url: `/play/${game.id}`, remixUrl: `/?remix=${game.id}#home` })), total, page, pageSize };
     },
     favorite(userId, gameId, value) {
       if (value) db.prepare('INSERT INTO favorites VALUES (?, ?, ?) ON CONFLICT(user_id, game_id) DO NOTHING').run(userId, gameId, Date.now());

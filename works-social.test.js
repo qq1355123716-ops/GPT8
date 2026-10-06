@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { mkdtempSync, readFileSync, rmSync } = require('node:fs');
+const { mkdtempSync, readFileSync, existsSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { createApp } = require('./server');
@@ -52,5 +52,24 @@ test('author profiles are public; favorites persist per account; copied edits pr
     assert.equal((await api('/api/favorites', undefined, other.cookie)).data.games[0].id, original.id);
     assert.equal((await api('/api/favorites', { gameId: original.id, favorite: false }, other.cookie)).data.favoriteCount, 0);
     assert.equal((await api('/api/favorites', undefined, other.cookie)).data.total, 0);
+    const deletionRoute = `/api/works/${original.id}/delete`;
+    assert.equal((await api('/api/works')).data.games.every(game => !game.canDelete), true);
+    assert.equal((await api('/api/works', undefined, owner.cookie)).data.games.find(game => game.id === original.id).canDelete, true);
+    assert.equal((await api(deletionRoute, {})).status, 401);
+    assert.equal((await api(deletionRoute, {}, other.cookie)).status, 404);
+    assert.equal((await api(deletionRoute, {}, owner.cookie, 'https://evil.example')).status, 403);
+    assert.equal(readFileSync(path.join(directory, 'games', original.filename), 'utf8'), originalHTML);
+    await api('/api/favorites', { gameId: original.id, favorite: true }, other.cookie);
+    assert.equal((await api(deletionRoute, {}, owner.cookie)).data.deleted, true);
+    assert.equal(existsSync(path.join(directory, 'games', original.filename)), false);
+    assert.equal((await api(original.url)).status, 404);
+    assert.equal((await api(original.sourceUrl, undefined, owner.cookie)).status, 404);
+    assert.equal((await api('/api/games', undefined, owner.cookie)).data.total, 0);
+    assert.equal((await api('/api/favorites', undefined, other.cookie)).data.total, 0);
+    assert.equal((await api(deletionRoute, {}, owner.cookie)).status, 404);
+    assert.equal(readFileSync(path.join(directory, 'games', copy.filename), 'utf8'), copyHTML);
+    await stop(); await start();
+    assert.equal((await api('/api/works')).data.total, 1);
+    assert.equal((await api('/api/games', undefined, other.cookie)).data.games[0].id, copy.id);
   } finally { if (server?.listening) await stop(); rmSync(directory, { recursive: true, force: true }); }
 });

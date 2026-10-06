@@ -26,7 +26,7 @@ function setupCollection(kind) {
       const data = await response.json();
       if (current !== version) return;
       if (!response.ok) { login.hidden = response.status !== 401; throw new Error(data.message || '读取失败，请重试。'); }
-      if (page > 1 && data.total && !data.games.length) { load(page - 1); return; }
+      if (page > 1 && !data.games.length) { load(page - 1); return; }
       currentPage = data.page;
       count.textContent = `共 ${data.total} ${source ? '份源文件' : '个作品'}`;
       if (kind === 'author') {
@@ -39,6 +39,19 @@ function setupCollection(kind) {
       empty.hidden = true;
       for (const game of data.games) {
         const card = document.createElement('article'); card.className = 'library-card';
+        if (kind === 'works' && game.canDelete) {
+          const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'delete-work'; remove.textContent = '×';
+          remove.title = '删除作品'; remove.setAttribute('aria-label', `删除作品：${game.title}`);
+          remove.addEventListener('click', async () => {
+            if (remove.disabled || !window.confirm(`删除《${game.title}》？作品和库中的源文件会一并删除，无法恢复。`)) return;
+            remove.disabled = true;
+            try {
+              await request(`/api/works/${game.id}/delete`, {});
+              if (current === version) load(currentPage);
+            } catch (error) { if (current === version) { empty.hidden = false; message.textContent = error.message; remove.disabled = false; } }
+          });
+          card.append(remove);
+        }
         const icon = document.createElement('div'); icon.className = 'library-card-icon'; icon.setAttribute('aria-hidden','true'); icon.textContent = source ? '</>' : '✳';
         const title = document.createElement('h3'); title.textContent = game.title;
         const date = document.createElement('time'); date.dateTime = new Date(game.created).toISOString(); date.textContent = `创建于 ${collectionDate.format(new Date(game.created))}`;
